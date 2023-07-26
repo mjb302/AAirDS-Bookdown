@@ -1,0 +1,42 @@
+# **Introduction**{#intro}
+
+Hospital acquired infections (HAI) can complicate admission episodes for patients admitted with other medical problems, prolonging length of stay and sometimes leading to confusion, falls and even death. During the COVID-19 pandemic HAIs have received increased attention due to a significant minority of all COVID-19 infections being acquired in hospital.  
+  
+  
+It is likely that many HAIs are transmitted through the air from patient to patient. Good ventilation of indoor spaces can help reduce this transmission but is not always possible. Other environmental interventions such as air cleaning units (ACUs) may be required. We hypothesise that installing high efficiency particulate air filters combined with integrated ultraviolet-C lamps, one type of ACU, can reduce the number of HAI on medicine for older people wards.  
+  
+To test this, we propose to compare the numbers of HAIs 12 months before and 12 months after ACU installation on our wards. We will contrast the trends observed with those on similar wards where no ADUs are installed. This will help us understand if installing ADUs helps reduce the number of infections patients acquire in hospital. Although this is a quasi-experimental study, it is entirely observational. We are taking advantage of both variation in the availability of ADUs on our hospital wards and large-scale access to de-identified routinely collected healthcare data, available via our hospital’s electronic health record.
+
+The study will also evaluate the feasibility and acceptability of installing ADUs on busy wards, using questionnaires given to a sample of staff and patients. Additionally, air and surface sampling will be conducted on wards with and without ADUs to look for evidence of important bacteria, fungi and viruses in the ward environment and assess air quality.  
+  
+This will represent the first comprehensive study of ADU implementation on medicine for older people wards, with theaim of reducing HAIs.
+  
+## Summary of main issues{#issues}  
+
+The before and after controlled study within our project proposal will use de-identified routinely collected healthcare data. Protocols for data de-identification, access and storage are fully detailed in the relevant sections of this application and the study protocol. These are designed to ensure that any threats to breaches in patient confidentiality are mitigated.
+
+The acceptability questionnaire and associated consent process has been designed to be succinct and simple to administer. We are not collecting any information about participants other than whether they are a patient or staff member and their broad staff category e.g., medical, nursing, administrative staff. These features aim to minimise any impact on clinical activity as a result of administration of this questionnaire, facilitate a verbal consent process and ensure there is no person identifiable information collected as part of this questionnaire or its administration.
+
+## What is the principal research question/objective?{#princQ}
+
+Our primary objective is to evaluate if air disinfection with high efficiency portable air filters with integrated ultraviolet-C irradiation reduces the incidence of hospital acquired infections on medicine for older people inpatient wards, including COVID-19.
+
+## What are the secondary research questions/objectives if applicable?{#secQs}
+
+Our secondary objectives are to evaluate the feasibility of ADU deployment in busy inpatient medical wards and their acceptability to staff and patients.
+
+## What is the scientific justification for the research?{#justif}
+
+Around 1 in 8 of all Covid-19 cases caused by the SARS-CoV2 virus have been acquired in a hospital setting and the COVID-19 pandemic has raised awareness more generally of the important negative effects of hospital acquired infections on patients. For example, it is estimated that hospital acquired Covid-19 cases prolonged the first wave of the UK epidemic by 2 weeks.
+
+Growing evidence points to aerosol transmission as being an important mitigatable factor in reducing the spread of COVID-19. There is also evidence that many other nosocomial infections, including norovirus and clostridioides difficile, may also have an airborne component to their transmission. Older patients are particularly vulnerable to hospital acquired infections due to concurrent multimorbidity and frailty, which are common syndromes in this patient group. Older hospitalised patients also often have poor mobility, being bed or chair bound and are usually socially distanced on the ward, having little contact with each other owing to the layout of most NHS multiple occupancy bays. Therefore, it is likely that spread of infectious agents from patient to patient is occurring at least in part through the air and reducing airborne transmission of SARS-CoV2 and other hospital acquired infections may reduce harm in this vulnerable patient group. However, in many inpatient environments it is not feasible to simply open a window to improve ventilation. This is either not possible due to the building structure or only possible to a small extent,
+particularly in cold weather.
+
+
+Therefore, United Kingdom Scientific Advisory Group on Emergencies (SAGE) in their recent paper concerning hospital acquired Covid-19 infections [link](https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/979441/S1169_Facemasks_for_health _care_workers.pdf) advised that the application of air cleaning strategies such as HEPA filtration units and upper-room UV-C devices are potential measures to reduce infections in poorly ventilated spaces. A recent study at Cambridge University Hospitals has also demonstrated the feasibility of removing SARS-CoV-2 from the air of repurposed ‘surge’ wards using such air filtration systems, and suggests that air disinfection units (ADUs) may help reduce the risk of hospital-acquired SARSCoV-2 [link](https://doi.org/10.1093/cid/ciab933). The study also showed the ADUs were capable of removing other major bacteria, viruses and fungi (collectively termed pathogens) that cause infections in hospitalised patients. This is important as it confirmed these pathogens could be sampled in the ward air prior to ADU deployment, providing more evidence that they are indeed transmitted through the air.
+
+However, there is a lack of evidence on the feasibility of using ADUs in healthcare settings such as busy, general medicine for older people wards. It is unclear if these systems will be acceptable to staff and patients or whether they will effectively offer protection against important outcomes such as the number of hospital acquired infections. There is also uncertainty as to the correct commissioning of ADUs into healthcare settings. For example, where do they need to be placed in order to be effective and what air cleaning rate needs to be achieved?
+
+Therefore, this study will look at clinical outcomes in patients before and after ADU installation and evaluate whether there is any effect of the ADU installation on hospital acquired infections in older patients on dedicated medicine for older people wards. The study will also collect environmental data on the presence of important viruses, bacteria and fungi in the ward air and on ward surfaces, as well as assessing the quality of the air e.g., in terms of humidity, particulate count and levels of carbon dioxide (the gas we all breathe out). These data will be compared with data from wards with no ADU installation.
+
+This study with important clinical outcomes, microbiological sampling and air quality data on acute medicine for older people wards, as well as the qualitative feedback from staff and patients, will generate important knowledge allowing evidence based implementation of air cleaning systems.

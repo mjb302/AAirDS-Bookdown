@@ -1,0 +1,1165 @@
+# Particulates{#2}  
+  
+## Using `timeVariation()` to plot particulate trends with and without `HEPA`{#21}  
+
+We will use the `openair` package's `timeVariation()` function to plot daily, weekday, monthly and daily averages for individual particulate readings with and without the `HEPA` Air Cleaning Units (ACUs) installed. 
+
+Details of this function and its modifies can be found at [link](https://davidcarslaw.github.io/openair/reference/timeVariation.html).
+
+## Extracting equal periods of `HEPA` and `No HEPA` Data{#777a}
+
+It is important to only analyse like for like data i.e. `HEPA` and `No HEPA` in the same months given the effect of seasonality on window opening and humidity. 
+
+We only have `No HEPA` data from 8th February 2022 from 13:54:03 to 25th March 2022 and then from 12th October 2022 to 30th November 2022 @ 15:07:52. The sensors were all removed on the latter date in order to secure the data as there was concerns they had stopped transmitting remotely to the data servers.
+
+The sensors were reinstalled on from 13:06 on Wednesday 18th January 2023 and will be in situ now 5th February 2024 to ensure we have a full 12 months of `No HEPA` data.
+
+Given this, currently we are comparing a full 12 months worth of `HEPA` data with sparse `No HEPA` data. We would use the following to ensure that we only compare like for like:
+
+```{r eval=FALSE}
+iaq2a <- selectByDate(
+  iaq,
+  start = "08/02/2022",
+  end = "25/03/2022")
+
+iaq2b <- selectByDate(
+  iaq,
+  start = "12/10/2022",
+  end = "30/11/2022")
+  
+iaq2 <- rbind(iaq2a, iaq2b)
+
+rm(iaq2a)
+rm(iaq2b)
+```
+
+This creates a separate dataset of less than a third the original total but allows us to compare the same months to each other. We'll first start by rerunning the violin plots as they give a good indication of the distribution and spread of the data.
+
+All future comparisons grouping by `HEPA` state will use this smaller `iaq2` data set.
+
+## Density plots for **PM~1~** data{#23}  
+  
+In order to evaluate the skewed nature of the data we will next plot a kernal density estimation for the **PM~1~** data. This a smoothed version of the histogram & is a useful alternative to the histogram for continuous data that comes from an underlying smooth distribution which our **PM~1~** data is. As it is plotted on a log scale the observations of 0 are removed as unplottable for both `x` & `y`.
+  
+```{r f23, eval = rungraphs, fig.cap = "Kernal density plot for all $PM_1$ ($\\mu$g per m$^3$) observations, N=5,100,257 [31,511 NA values removed], bandwidth=0.0000001 log_x_"}
+ggplot(data = iaq, aes(x=pm1)) +
+scale_x_log10(limits=c(0.0001,5539),breaks=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,1000,5000)) +
+geom_density(bw=.0001)
+```
+```{r f23z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Kernal density plot for all $PM_1$ ($\\mu$g/m$^3$) observations N=5100257"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f23-1.png")
+```
+  
+### Density plots for **PM~1~** data - `log~x~` & `log~y~`{#231}  
+
+As can be seen from this graph the data is skewed and bimodal with one peak at 1 $\mu$g per m^3^ & a much smaller peak at 3000 $\mu$g per m^3^. This is better appreciated  with both `x` & `y` axis on a logarithmic scale.
+  
+```{r f231, eval = rungraphs, fig.cap = "Kernal density plot for all $PM_1$ ($\\mu$g per m$^3$) observations, N=5,100,257 [31,511 NA values removed], bandwidth=0.0000001 log xy"}
+ggplot(data = iaq, aes(x=pm1)) +
+  scale_x_log10(
+    limits=c(
+      0.0001,
+      5539),
+    breaks=c(
+      0.00001,
+      0.0001,
+      0.001,
+      0.01,
+      0.1,
+      1,
+      10,
+      100,
+      1000,
+      5000)) +
+  scale_y_log10(limits=c(0.0001,65000,
+                         breaks=c(0.001,0.01,0.1,1,10,100,1000,10000))) +
+  geom_density(bw=.0000001)
+```
+```{r f231z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Kernal density plot for all $PM_1$ ($\\mu$g per m$^3$) observations, N=5,100,257 (31,511 NA values removed), bandwidth=0.0000001 log xy"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f231-1.png")
+```
+  
+### Density plots for **PM~1~** data - `No HEPA` Sun, Mon & Tue{#232}  
+
+We note however that the high readings are mostly observed in the `No HEPA` state on a Sunday, Monday and Tuesday. To plot these we use the following code:
+  
+```{r eval=FALSE}
+iaq2$day <- format(as.Date(iaq2$dateTime), "%A")
+
+pm1SunMonTueNoHEPA <- rbind((iaq2[iaq$HEPA == "No HEPA" & iaq2$day == "Sunday",]), (iaq2[iaq2$HEPA == "No HEPA" & iaq2$day == "Monday",]), (iaq2[iaq$HEPA == "No HEPA" & iaq2$day == "Tuesday",]))
+
+pm1SunMonTueNoHEPA$DAY <- as.factor(pm1SunMonTueNoHEPA$day)
+```
+  
+Which produces the following density plot.
+  
+```{r f232, eval = rungraphs, fig.cap = "Kernal density plot for  a) Sunday $PM_1$; Green,  b) Monday $PM_1$; Red,  c) Tuesday $PM_1$; Blue, N=2,195,857 [13,708 NA values removed], $\\mu$g per m$^3$,   bandwidth=0.0000001 log_x_y"}
+
+ggplot(
+  data = pm1SunMonTueNoHEPA, 
+  aes(x=pm1, 
+      colour=DAY, 
+      linetype=DAY)) +
+  scale_x_log10(limits=c(0.0001,
+                         5539),
+                breaks=c(0.00001,
+                         0.0001,
+                         0.001,
+                         0.01,
+                         0.1,
+                         1,
+                         10,
+                         100,
+                         1000)) +
+  scale_y_log10(limits=c(0.0001,65000,
+                         breaks=c(0.001,
+                                  0.01,
+                                  0.1,
+                                  1,
+                                  10,
+                                  100,
+                                  1000,
+                                  10000))) +
+  geom_density(bw=.0000001)
+```
+```{r f232z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Kernal density plot for all $PM_1$ ($\\mu$g per m$^3$) observations, N=5,100,257 [31,511 NA values removed], bandwidth=0.0000001 log xy"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f232-1.png")
+```
+  
+This will need to be examined further e.g. by filtering the data by ward (A vs B) and by month. *It is however important to note that this currently is a limited subset of `No HEPA` data as we only have readings for Feb-Mar & Oct-Nov 2022.*
+
+## Analysing unexpected results - Observations outside the normal distribution{#26}  
+  
+Data presented later has confirmed the time stamps as being accurate. The striking finding therefore from the **PM~1~** data are the 3 peaks occurring between the following time ranges depicted in Image 1.:  
+
+1. Sunday 1800 - Monday 0900  
+
+2. Monday 1200 - Monday 2000  
+
+3. Monday 2300 - Tuesday 0900  
+
+```{r f26z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="$PM_1$ ($\\mu$g per m$^3$) observations for Sunday to Tuesday (95$\\%$ CI)"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/PM1_3spikes_mean_timeVariance_openair_SUN-TUES.jpg")
+```
+
+
+### Isolating the sensors for **PM~1~** mean data in `timeVariation()` in `R`{#261}  
+
+To elucidate if a single sensor is responsible for the high **PM~1~** readings we will first plot **PM~1~** means with `group = "sensID"`.  
+  
+```{r f261, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by individual sensor by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+  iaq,
+  pollutant = "pm1",
+  local.tz = "Europe/London",
+  normalise = FALSE,
+  group = "sensID",
+  xlab = c("hour", "hour", "month", "weekday"),
+  plot = TRUE,
+  )
+```
+```{r f261z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by individual sensor by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f261-1.png")
+```
+  
+Here we see that it is sensor S11213884 appears to be producing the high **PM~1~** readings.
+
+### Isolating S11213884{#262}  
+  
+If we isolate sensor S11213884 using `iaq_S11213884 <- iaq[iaq$sensID == "S11213884",]` we can then repeat the `timeVariation()` for this sensor alone to confirm it is producing the high **PM~1~** counts.
+  
+```{r f262, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) for sensor S11213884 by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+iaq2_S11213884 <- iaq2[iaq2$sensID == "S11213884",]
+timeVariation(
+iaq2_S11213884,
+pollutant = "pm1",
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f262z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) for sensor S11213884 by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f262-1.png")
+```
+
+
+### Further examining the data minus S11213884 to better describe the high **PM~1~** readings{264}
+
+As we can see the high readings are seen in October and November for `No HEPA` and that the readings are double that of December.  
+  
+I know that sensor S11213884 was located in a corridor and the only difference between the wards from 2021 to 2021; the respective `HEPA` and `No HEPA` periods`; was that we begun weekly bioaerosol and surface sampling from a location close to sensor S11213884. That sampling however begins from around 12noon on the monday and is continuous up to 12noon on the Friday.  
+  
+There is however also a defibrillator close to sensor S11213884 so it may in fact be that being tested that is interfering with the sensor readings.  
+  
+### **PM~1~** means via `timeVariation()` for all but sensor `S11213884`{#265}  
+  
+Repeating the `timeVariance()` function for the data set minus sensor `S11213884` will reveal if the effect of `HEPA` or `No HEPA` persists.
+  
+```{r f265, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) for all but S11213884 by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2[iaq2$sensID!="S11213884",],
+pollutant = "pm1",
+local.tz = "Europe/London",
+normalise = FALSE,
+cols = "cbPalette",
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f265z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) for all but S11213884 by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f265-1.png")
+```
+  
+## Density plot minus `S11213884`{#266}  
+
+  
+Given we suspect a sensor S11213884 was responsible for the bimodal distribution of the data seen in Figures [\@ref(fig:f231z), \@ref(fig:f232z)]{color="blue"} we can now re-run the density plot excluding sensor S11213884.
+
+```{r f266, eval = rungraphs, fig.cap="Kernal density plot for all $PM_1$ ($\\mu$g per m$^3$) observations, N=5,100,257 [31,511 NA values removed], bandwidth=0.0000001"}
+ggplot(data = iaq2[iaq2$sensID!="S11213884",], aes(x=pm1)) +
+scale_x_log10(limits=c(0.0001,5539),breaks=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,1000,5000)) +
+scale_y_log10(limits=c(0.0001,65000, breaks=c(0.001,0.01,0.1,1,10,100,1000,10000))) +
+geom_density(bw=.0000001)
+```
+```{r f266z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Kernal density plot for all $PM_1$ ($\\mu$g per m$^3$) observations, N=5,100,257 [31,511 NA values removed], bandwidth=0.0000001"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f266-1.png")
+```
+
+## Persistant bimodal distribution of **PM~1~** minus sensor `S11213884`{#27}
+
+If we used `timeVariance()` to plot the sensors individually we might also find other sensors with high readings skewing the mean - Figure [\@ref(fig:f27z)]{color="blue"}
+ 
+```{r r f27, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by individual sensors by day $\\&$ hour. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(iaq[iaq$sensID!="S11213884",], 
+                        pollutant = "pm1", 
+                        local.tz = "Europe/London", 
+                        normalise = FALSE, 
+                        group = "sensID", 
+                        xlab = c("hour", "hour", "month", "weekday"),
+                        cols = c("#8c510a", 
+                                  "#bf812d",
+                                  "#dfc27d",
+                                  "#f6e8c3",
+                                  "#f5f5f5",
+                                  "#c7eae5",
+                                  "#80cdc1",
+                                  "#35978f",
+                                  "#01665e")
+                        )
+
+``` 
+```{r f27z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by individual sensors by day $\\&$ hour. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f27-1.png")
+```
+
+  
+## Readings over 100 $\mu$g per m^3^{#773}
+
+As can be seen from the density plots the second peak starts at 1000 $\mu$g per m^3^ up to 5000 $\mu$g per m^3^. Splitting the data at the mid-point (100 $\mu$g per m^3^) of these two distributions to create a new variable `spike2` where `Y` is greater than or equal to 100 $\mu$g per m^3^ and `N` is less than 100 $\mu$g per m^3^ requires the following code:
+
+```{r eval=FALSE}
+iaq$spike2 <- if_else((iaq$pm1 >= 100), 
+                      ">100", 
+                      "<100", 
+                      missing = NULL)
+iaq$spike2 <- as.factor(iaq$spike2)
+```
+
+We can then calculate a `count()` of this `spike2` factor in `dplyr` we get 4017 individual readings above 100 $\mu$g per m^3^. In 3 & 4 below showing there are 3,225 individual observations out of 5,097,032 greater than 1000 $\mu$g per m^3^ and if we used a higher cutoff (3000 $\mu$g per m^3^) as in 5 & 6 below, we get only 350 observations. A cut off of 100 $\mu$g per m^3^ will be used for the rest of the analysis.
+
+1.       <100 $\mu$g per m^3^          4999922
+2.      =>100 $\mu$g per m^3^          4017
+
+3.      < 1000 $\mu$g per m^3^         5097032   
+4.      =>1000 $\mu$g per m^3^         3225 
+
+5.      < 3000 $\mu$g per m^3^         5099907 
+6.      =>3000 $\mu$g per m^3^         350 
+        
+In the next section we will exclude these observations (N = 3,225) or `r (3225/(5057032+3225))*100`% of all observations. They are a small proportion of all data but have a disproportionate impact on the underlying normal distribution. We will analyse these two distributions separately from this point.
+
+### Plotting the two distributions using `ggplot2` {#7731}
+
+First we will repeat the density plot to examine the two distributions.
+
+```{r f774, eval = rungraphs, fig.cap = "Kernal density plot for $PM_1$ less than 100 $\\mu$g per m$^3$ observations"}
+ggplot(iaq, aes(x=pm1, color=spike2, linetype=spike2)) +
+scale_x_log10(limits=c(0.0001,5539),
+              breaks=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,1000,5000)) +
+geom_density(bw=.0000001)
+```
+```{r f774z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Kernal density plot for $PM_1$ less than 100$\\mu$g per m$^3$ observations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f774-1.png")
+```
+
+As can be seen here using the 100 $\mu$g per m^3^ splits the distributions such that two very distinct and separate normal districutions can be delineated. The first describes the background **PM~1~** readings that reach the sensor after dispersing through the environment from a distal source whereas the readings greater than 100 $\mu$g per m^3^ are likely emitted in close proximity to the sensor. Whilst they may give information about decay, and therefore ventilation, we will analyse them separate to the **PM~1~** readings less than 100 $\mu$g per m^3^ & greater than or equal to 100 using:
+
+`iaq$spike2 <- if_else((iaq$pm1 >= 100),`
+                      `">100",`
+                      `"<100",`
+                      `missing = NULL)`
+
+### Plotting mean **PM~1~** observations for levels less than 100 $\mu$g per m^3^ by `HEPA` state{#775}
+
+Comparing the two charts emphasises the disproportionate effect that `r (3225/(5057032+3225))*100`% of total observations was having on the variance.
+
+```{r f775, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) for values less than 100$\\mu$g per m$^3$, by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2[iaq2$spike2 == "<100",],
+pollutant = "pm1",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+cols = "cbPalette",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f775z, echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) for values less than 100$\\mu$g per m$^3$, by hour of the day, day of the week, and month (The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations)"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f775-1.png")
+```
+
+## Effect of `HEPA` on **PM~1~** distribution{#776}
+
+Firstly does the `HEPA` state shift the normal distribution appreciably for observations less than 100 $\mu$g per m^3^?
+
+```{r f776, eval = rungraphs, fig.cap = "Kernal density plot for $PM_1$ less than 100 $\\mu$g per m$^3$ observations, N=5,097,032 [34,109 NA values removed], bandwidth=0.0000001 log xy"}
+ggplot(iaq2[iaq2$spike2 == "<100",],
+       aes(x=pm1, 
+       colour=HEPA,
+       linetype=HEPA)) +
+scale_x_log10(limits=c(0.01,100),
+       breaks=c(0.01,0.1,1, 10, 100)) +
+geom_density(bw=.0000001)
+```
+```{r f776z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Kernal density plot for $PM_1$ less than 100 $\\mu$g per m$^3$ observations, N=5,097,032, bandwidth=0.0000001 log xy"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f776-1.png")
+```
+
+## Violin plot of **PM~1~** observations less than 100 $\mu$g per m^3^ by `HEPA` state. {#777}
+
+```{r f777, eval = rungraphs, fig.cap="Violin plot of $PM_1$ observations less than 100 $\\mu$g per m$^3$ by HEPA state, N= 5,097,032 (88,641 non-finite values removed)"}
+ggplot(data = iaq2[iaq2$spike2 == "<100",], aes(x=HEPA, y=pm1)) +
+geom_boxplot(notch = TRUE,
+outlier.shape=NA,
+fill="green",
+width=0.1) +
+geom_violin(fill="gold",
+alpha=0.3) +
+labs(y="$PM_1$ ($\\mu$g per m$^3$)") +
+ylim(0, 12)
+```
+```{r f777z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Violin plot of $PM_1$ observations less than 100 $\\mu$g per m$^3$ by HEPA state, N= 5,097,032 (88,641 non-finite values removed)"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f777-1.png")
+```
+
+# **PM~1~**
+
+## **PM~1~** mean values via `timeVariation()` (`openair`) in `R`
+
+Firstly we will plot the variation in **PM~1~** concentrations ($\mu$g per m^3^) by hour of the day, day of the week, and month. The plot below shows the 95pc confidence intervals in the mean calculated through bootstrap simulations utilising the `timeVarition()` function. Figure [\@ref(fig:faz)]{color="blue"}.
+  
+```{r fa, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "pm1",
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r faz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fa-1.png")
+```
+  
+## **PM~1~** median values via `timeVariation()` in `openair`
+
+Next we will plot the variation in **PM~1~** concentrations ($\mu$g per m^3^) by hour of the day, day of the week, and month. This second plot below shows the median line plotted together with the 5th to 95thth and 25th to 75th quantiles. Figure [\@ref(fig:f222z)]{color="blue"}.
+  
+```{r f222, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the show the median, 5th to 95thth and 25th to 75th quantiles.", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "pm1",
+statistic = "median",
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f222z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the show the median, 5th to 95thth and 25th to 75th quantiles."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222-1.png")
+```
+  
+As you can see from these two very differrent exploratory plots there is a significant differrence between the mean values and the median indicating that the data is heavily skewed by infrequent but high concentration **PM~1~** observations.
+
+## **PM~1~** mean values via `timeVariation` in `openair` by matched `HEPAperiod`
+
+Here we only compare the two periods where one ward has `HEPA and the other doesn't. Figure [\@ref(fig:f222az)]{color="blue"}.
+
+```{r f222a, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period", cache=TRUE}
+timeVariation(
+  iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+          iaq2d$HEPAperiod!="HEPAunmatched1",],
+pollutant = "pm1",
+cols = c("grey","orange","black","red"),
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPAperiod",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)  
+```
+```{r f222az,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222a-1.png")
+```
+
+## **PM~1~** mean values via `timeVariation` in `openair` by matched `HEPAperiod` Wednesday to Friday
+
+Removing Saturday to Tuesday in order to see the changes on the other days. Figure [\@ref(fig:f222bz)]{color="blue"}.
+
+```{r f222b, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period minus Saturday to Tuesday for clarity", cache=TRUE}
+timeVariation(
+iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+        iaq2d$HEPAperiod!="HEPAunmatched1" &
+        iaq2d$day!="Saturday" &
+        iaq2d$day!="Sunday" &
+        iaq2d$day!="Monday" &
+        iaq2d$day!="Tuesday",],
+pollutant = "pm1",
+cols = c("grey","orange","black","red"),
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPAperiod",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)  
+```
+```{r f222bz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period minus Saturday to Tuesday for clarity"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222b-1.png")
+```
+
+## **PM~1~** simple vector plot for October in the`No HEPA` state  using `xts`
+
+It would be intersting to localise the abnormal PM signal seen in October in order to better understand it. Anecdotally in the weeks following the HEPA deactivation on Interventian A the cleaner remarked a significant deterioration to floor cleanliness necessitating increased frequency of cleaning. Did this remark coincide temporally with the sensor data. Figure [\@ref(fig:f222cz)]{color="blue"}. 
+
+```{r f222c, eval = rungraphs, fig.cap = "Simple vector plot of $PM_1$ for `NoHEPAmatched2` by date"}
+autoplot(iaq2bPM1.xts) +
+  geom_line(color="red") +
+  labs(y="$PM_1$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f222cz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_1$ for `NoHEPAmatched2` by date"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222c-1.png")
+```
+
+## **PM~1~** simple vector plot for a 4 day period centred on Nov 1st 2022 in the`No HEPA` state  using `xts`
+
+We already know the unexplained high readings come from `sensID` "S11213884" and now we can see that the high readings come from the 2 days immediately before and after the 1st November 2022. Figure [\@ref(fig:f222dz)]{color="blue"}.
+
+```{r f222d, eval = rungraphs, fig.cap = "Simple vector plot of $PM_1$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022"}
+autoplot(iaq2bPM1.xts["2022-10-30/2022-11-2"]) +
+  geom_line(color="red") +
+  labs(y="$PM_1$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f222dz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_1$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222d-1.png")
+```
+
+## **PM~1~** simple vector plot for a 4 day period centred on Nov 1st 2022 in the`No HEPA` state  using `xts` - Figure [\@ref(fig:f222ez)]{color="blue"}
+
+And here plotting only S11213884 we can see that the entirety of this abberant signal comes from this single sensor (Figure [\@ref(fig:f222ez)]{color="blue"} ).
+
+```{r f222e, eval = rungraphs, fig.cap = "Simple vector plot of $PM_1$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022 for `sensID` S11213884"}
+autoplot(iaq2bS11213884PM1.xts["2022-10-30/2022-11-2"]) +
+  geom_line(color="red") +
+  labs(y="$PM_1$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f222ez,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_1$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022 for `sensID` S11213884"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222e-1.png")
+```
+
+## **PM~1~** simple vector plot for a 10 minute period from 19:55hrs on the 30th October in the`No HEPA` state  using `xts`
+
+Here we can see that the PM1 levels started to climb at around 19:55hrs on the 30th October and within 10 minutes had peaked at aroun 1250ppm. This then occurred on three separate occasions on subsequent days as shown on Figure [\@ref(fig:f222ez)]{color="blue"}
+
+```{r f222e1, eval = rungraphs, fig.cap = "Simple vector plot of $PM_1$ for `NoHEPAmatched2` by date for the period 30th October at 7 55pm to 8 05pm for `sensID` S11213884"}
+autoplot(iaq2bS11213884PM1.xts["2022-10-30 19:30:00/2022-10-30 20:05:00"]) +
+  geom_line(color="red") +
+  labs(y="PM1 (ug per m3)", x="Date") 
+```
+```{r f222e1z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_1$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022 for `sensID` S11213884"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222e1-1.png")
+```
+
+## **PM~1~** simple vector plot for a 3 day period centred on Nov 5th 2022 (Bonfire night) in the`No HEPA` state  using `xts`
+
+Importantly a major source of external PM was not associated with any changes internally nor for that matter externally (Figure [\@ref(fig:f222fz)]{color="blue"} ).
+
+```{r f222f, eval = rungraphs, fig.cap = "Simple vector plot of $PM_1$ for `NoHEPAmatched2` by date for the period 4th to 6th November 2022"}
+autoplot(iaq2bPM1.xts["2022-11-4/2022-11-6"]) +
+  geom_line(color="red") +
+  labs(y="$PM_1$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f222fz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_1$ for `NoHEPAmatched2` by date for the period 4th to 6th November 2022"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222f-1.png")
+```
+
+## **PM~1~** from `Bay` sensors; both matched periods
+
+Following discussions with the wider AAirDS research group it was apparrent from individual sensor analysis that there are patterns to each sensor; some with generall high readings and some lower irrespective of HEPA state. Therefore as well as examining a matched period in time it was also decided to examine sensors matched spatially. Given the ward corridor layouts differ significantly with walls being added at differring times and nursing stations from one ward absent these comparisons will be done for the bay sensors alone whose configuration only differs by the patients within them (Figure [\@ref(fig:f222gz)]{color="blue"} ).
+
+```{r f222g, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show the HEPA and orange the No HEPA state for both matched periods. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+        iaq2d$HEPAperiod!="HEPAunmatched1" &
+        iaq2d$wardLoc=="Bay",],
+pollutant = "pm1",
+cols = c("orange", "black", "orange","black", "orange", "black","black"),
+normalise = FALSE,
+group = "sensLocHEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f222gz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show the HEPA and orange the No HEPA state. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222g-1.png")
+```
+
+## **PM~1~** from `Bay` sensors; first matched period
+
+Comparing like with like is important when trying to draw conclusions about cuasality. Here we plot PMs for bay sensors only as they are likley to share similar behaviour (Figure [\@ref(fig:f222hz)]{color="blue"} ).
+
+```{r f222h, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show the HEPA and orange the No HEPA state for the first matched period. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+        iaq2d$HEPAperiod!="HEPAunmatched1" &
+        iaq2d$HEPAperiod!="NoHEPAmatched2" &
+        iaq2d$HEPAperiod!="HEPAmatched2" &
+        iaq2d$wardLoc=="Bay",],
+pollutant = "pm1",
+cols = c("black", "orange","black", "orange", "black"),
+normalise = FALSE,
+group = "sensLocHEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f222hz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show the HEPA and orange the No HEPA state for the first matched period. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222h-1.png")
+```
+
+## **PM~1~** from `Bay` sensors; first matched period for Bay D & H sensors only{#iaq2aBHplots}
+
+As can be seen from Figure [\@ref(fig:f222hz)]{color="blue"} we have not only comparable bay sensors for the fist matched period but also have 2 sensor pairs that come from the same bays on the respecive wards. Given the wards mirror each other and have identical pre-existing ventilation systems the only major differrence would be orientation and therefore the effect of the prevailing wind on natural ventilation. If we ignore this differrence however for now we can reduce Figure [\@ref(fig:f222hz)]{color="blue"} to only showing these matched pairs - I.e. minus the Bay C sensor in the `HEPA` state.
+
+Prior to running these plots however we will add in a further step to identify data gaps in each sensor and then only include data which is matched in date and time by the corresponding sensor on the other ward. For the H bay sensors there are only 2 gaps seen in the sensor from Ward A. The ward B sensor had no gaps. We would use the following to remove the missing data from the ward B sensor:
+
+`iaq2aBH <- iaq2a[iaq2a$date <= "2022-02-11 21:53:13" |`
+                  `(iaq2a$date >= "2022-02-17 12:35:06" &` 
+                  `iaq2a$date <= "2022-02-28 08:03:17") |`
+                  `(iaq2a$date >= "2022-03-18 13:51:39" &` 
+                  `iaq2a$date <= "2022-03-24 23:59:59"),]`
+
+```{r BHFG}
+iaq2aBHF <- iaq2a[iaq2a$sensLocHEPA=="BH_F-",]
+iaq2aBHG <- iaq2a[iaq2a$sensLocHEPA=="BH_G+",]
+
+sensdatBH_GF <- iaq2a[iaq2a$sensLocHEPA == "BH_G+",] # Combined vertically for HEPA no HEPA comparison
+
+# Compute location of missing data
+missLocBH_GF<- diff(as.numeric(sensdatBH_GF$date))
+qBH_GF<- which(missLocBH_GF>3600) # These are the numerical loactions
+gapStartBH_GF<- sensdatBH_GF$date[qBH_GF] # These are date stamps for the start of the gap (missing data)
+gapStopBH_GF <- sensdatBH_GF$date[qBH_GF+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeBH_GF <- as.numeric(gapStopBH_GF) - as.numeric(gapStartBH_GF)
+gapSizeBH_GF <- (gapSizeBH_GF/3600) # These are the size of the gaps in hours
+gapSizeBH_GF <- round(gapSizeBH_GF,1)
+nmissBH_GF <- gapSizeBH_GF*120
+wBH_GF <- floor(nmissBH_GF) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocBH_GF <- qBH_GF
+gapWidthBH_GF <- wBH_GF
+gapStartBH_GF <- as.character(gapStartBH_GF, "%d-%m-%Y %H:%M:%S")
+gapStopBH_GF <- as.character(gapStopBH_GF, "%d-%m-%Y %H:%M:%S")
+missResultsBH_GF<- cbind.data.frame(gapStartBH_GF, gapStopBH_GF, gapSizeBH_GF, gapWidthBH_GF)
+missResultsBH_GF<- adorn_totals(missResultsBH_GF, where = "row")
+```
+```{r tBHFG, eval=runtables}
+knitr::kable(
+  missResultsBH_GF,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for bay H sensors from both ward A in the HEPA state and ward B in the No HEPA state 9th February 2022 to 24th March 2022. N.B the ward B table is not shown as there was no issing data."
+  )
+```
+```{r fBHFG, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for bay H sensors from both ward A in the HEPA state and ward B in the No HEPA state 9th February 2022 to 24th March 2022. N.B the ward B table is not shown as there was no issing data."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fBC_G-1.png")
+```
+
+```{r f222h1, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show the HEPA and orange the No HEPA state for the first matched period and first spatial pair from H Bay with missing data removed from corresponding sensor on opposing ward. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2aBH,
+pollutant = "pm1",
+cols = c("black","orange"),
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f222h1z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show the HEPA and orange the No HEPA state for the first matched period and first spatial pair from H Bay without missing data removed from corresponding sensor on opposing ward. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222h1-1.png")
+```
+```{r f222h1az,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show the HEPA and orange the No HEPA state for the first matched period and first spatial pair from H Bay with missing data removed from corresponding sensor on opposing ward. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222h1-1a.png")
+```
+
+
+```{r f222h2, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show the HEPA and orange the No HEPA state for the first matched period and second spatial pair from D Bay. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+        iaq2d$HEPAperiod!="HEPAunmatched1" &
+        iaq2d$HEPAperiod!="NoHEPAmatched2" &
+        iaq2d$HEPAperiod!="HEPAmatched2" &
+        iaq2d$sensLocHEPA!="BH_F-" &
+        iaq2d$sensLocHEPA!="BC_G+" &
+        iaq2d$sensLocHEPA!="BH_G+" &
+        iaq2d$wardLoc=="Bay",],
+pollutant = "pm1",
+cols = c("yellow","darkgreen"),
+normalise = FALSE,
+group = "sensLocHEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f222h2z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show the HEPA and orange the No HEPA state for the first matched period and second spatial pair from D Bay. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222h2-1.png")
+```
+
+## **PM~1~** from `Bay` sensors; second matched period
+
+This is for the period when the HEPA was removed from ward A (Figure [\@ref(fig:f222iz)]{color="blue"} ).
+
+```{r f222i, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show the HEPA and orange the No HEPA state for the second matched period. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+        iaq2d$HEPAperiod!="HEPAunmatched1" &
+        iaq2d$HEPAperiod!="NoHEPAmatched1" &
+        iaq2d$HEPAperiod!="HEPAmatched1" &
+        iaq2d$wardLoc=="Bay",],
+pollutant = "pm1",
+cols = c("orange", "black", "black"),
+normalise = FALSE,
+group = "sensLocHEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f222iz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show the HEPA and orange the No HEPA state for the second matched period. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f222i-1.png")
+```
+
+## Violin plot of **PM~1~** observations without segregation by `HEPA` state.
+
+A violin plot is a hybrid of a box plot and a kernel density plot, which shows peaks in the data. It is used to visualize the distribution of numerical data. Unlike a box plot that can only show summary statistics, violin plots depict summary statistics and the density of each variable.
+
+On each side of the box-plot is a kernel density estimation to show the distribution shape of the data. Wider sections of the violin plot represent a higher probability that observations will take on the given value; the thinner sections represent a lower probability.
+
+```{r f777ab, eval = rungraphs, fig.cap="Violin plot of $PM_1$ observations by HEPA state, N= 5,097,032 (88,641 non-finite values removed)"}
+ggplot(data = iaq2d, aes(x=HEPA, y=pm1)) +
+geom_boxplot(notch = TRUE,
+outlier.shape=NA,
+fill="green",
+width=0.1) +
+geom_violin(fill="gold",
+alpha=0.3) +
+labs(y="$PM_1$ ($\\mu$g per m$^3$)") +
+ylim(0, 12)
+```
+```{r f777abz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Violin plot of $PM_1$ observations by HEPA state, N= 5,097,032 (88,641 non-finite values removed)"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f777ab-1.png")
+```
+
+## `SmoothTrend()` for **PM~1~**
+
+This is a non-parametric method to calculate time series trends (Figure [\@ref(fig:f777acz)]{color="blue"} ).
+
+```{r f777ac, eval = rungraphs,  fig.cap="MannKendall smooth trend approach to trend detection with bootstrap technique (provides estimate of uncertainty as well as quantifying slope uncertainties", cache=TRUE}
+smoothTrend(iaqHr,
+pollutant = "pm1",
+type = "weekend",
+avg.time = "month",
+simulate = TRUE,
+n = 10,
+cols = "cbPalette")
+```
+```{r f777acz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="MannKendall smooth trend approach to trend detection with bootstrap technique (provides estimate of uncertainty as well as quantifying slope uncertainties)"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f777ac-1.png")
+```
+
+# **PM~2.5~**{#7777}
+
+## **PM~2.5~** mean values via `timeVariation()` (`openair`) in `R`
+
+Next we will plot the variation in **PM~2.5~** concentrations ($\mu$g per m^3^) by hour of the day, day of the week, and month. The plot below shows the 95$\%$ confidence intervals in the mean calculated through bootstrap simulations utilising the `timeVarition()` function (Figure [\@ref(fig:f7777z)]{color="blue"} ). 
+  
+```{r f7777, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_{2.5}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "pm2_5",
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f7777z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_{2.5}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7777-1.png")
+```
+  
+## **PM~2.5~** median values via `timeVariation()` in `openair`
+
+Next we will plot the variation in **PM~2.5~** concentrations ($\mu$g per m^3^) by hour of the day, day of the week, and month. This second plot below shows the median line plotted together with the 5th to 95thth and 25th to 75th quantiles (Figure [\@ref(fig:f7778z)]{color="blue"} ).
+  
+```{r f7778, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_{2.5}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the show the median, 5th to 95thth and 25th to 75th quantiles.", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "pm2_5",
+statistic = "median",
+cols = "cividis",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f7778z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_{2.5}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the show the median, 5th to 95thth and 25th to 75th quantiles."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7778-1.png")
+```
+
+## **PM~2.5~** mean values via `timeVariation` in `openair` by matched `HEPAperiod`
+Figure [\@ref(fig:f7778az)]{color="blue"}
+
+```{r f7778a, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_{2.5}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period", cache=TRUE}
+timeVariation(
+iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+        iaq2d$HEPAperiod!="HEPAunmatched1",],
+pollutant = "pm2_5",
+cols = c("grey","orange","black","red"),
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPAperiod",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)  
+```
+```{r f7778az,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_{2.5}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7778a-1.png")
+```
+
+## **PM~2.5~** mean values via `timeVariation` in `openair` by matched `HEPAperiod` Wednesday-Friday
+Figure [\@ref(fig:f27778bz)]{color="blue"}
+
+```{r f27778b, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_{2.5}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period minus Saturday to Tuesday for clarity", cache=TRUE}
+timeVariation(
+iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+        iaq2d$HEPAperiod!="HEPAunmatched1" &
+        iaq2d$day!="Saturday" &
+        iaq2d$day!="Sunday" &
+        iaq2d$day!="Monday" &
+        iaq2d$day!="Tuesday",],
+pollutant = "pm2_5",
+cols = c("grey","orange","black","red"),
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPAperiod",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)  
+```
+```{r f27778bz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_{2.5}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period minus Saturday to Tuesday for clarity"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f27778b-1.png")
+```
+
+## **PM~2.5~** simple vector plot for a 4 day period centred on Nov 1st 2022 in the`No HEPA` state  using `xts`
+Figure [\@ref(fig:f27778dz)]{color="blue"}
+
+```{r f27778d, eval = rungraphs, fig.cap = "Simple vector plot of $PM_{2.5}$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022"}
+autoplot(iaq2bPM2_5.xts["2022-10-30/2022-11-2"]) +
+  geom_line(color="red") +
+  labs(y="$PM_{2.5}$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f27778dz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_{2.5}$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f27778d-1.png")
+```
+
+## **PM~2.5~** simple vector plot for a 4 day period centred on Nov 1st 2022 in the`No HEPA` state  using `xts`
+Figure [\@ref(fig:f27778ez)]{color="blue"}
+
+```{r f27778e, eval = rungraphs, fig.cap = "Simple vector plot of $PM_{2.5}$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022 for `sensID` S11213884"}
+autoplot(iaq2bS11213884PM2_5.xts["2022-10-30/2022-11-2"]) +
+  geom_line(color="red") +
+  labs(y="$PM_{2.5}$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f27778ez,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_{2.5}$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022 for `sensID` S11213884"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f27778e-1.png")
+```
+
+## Violin plot of **PM~2.5~** observations without segregation by `HEPA` state
+Figure [\@ref(fig:f7779z)]{color="blue"}
+
+```{r f7779, eval = rungraphs, fig.cap="Violin plot of $PM_{2.5}$ observations by HEPA state, N= 5,097,032 (88,641 non-finite values removed)"}
+ggplot(iaq2, aes(x=HEPA, y=pm2_5)) +
+geom_boxplot(notch = TRUE,
+outlier.shape=NA,
+fill="green",
+width=0.1) +
+geom_violin(fill="gold",
+alpha=0.3) +
+labs(y="$PM_{1-2.5}$ ($\\mu$g per m$^3$)") +
+ylim(0, 2)
+```
+```{r f7779z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Violin plot of $PM_{2.5}$ observations by HEPA state, N= 5,097,032 (88,641 non-finite values removed)"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7779-1.png")
+```
+
+# **PM~4~**{#7780}
+
+## **PM~4~** mean values via `timeVariation()` (`openair`) in `R`
+
+Next we will plot the variation in **PM~4~** concentrations ($\mu$g per m^3^) by hour of the day, day of the week, and month. The plot below shows the 95$\%$ confidence intervals in the mean calculated through bootstrap simulations utilising the `timeVarition()` function (Figure [\@ref(fig:f7781z)]{color="blue"} ). 
+  
+```{r f7781, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_4$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "pm4",
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f7781z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_4$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7781-1.png")
+```
+  
+## **PM~4~** median values via `timeVariation()` in `openair` 
+
+Next we will plot the variation in **PM~4~** concentrations ($\mu$g per m^3^) by hour of the day, day of the week, and month. This second plot below shows the median line plotted together with the 5th to 95thth and 25th to 75th quantiles (Figure [\@ref(fig:f7782z)]{color="blue"} ).
+  
+```{r f7782, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_4$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the show the median, 5th to 95thth and 25th to 75th quantiles.", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "pm4",
+statistic = "median",
+cols = "cividis",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f7782z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_4$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the show the median, 5th to 95thth and 25th to 75th quantiles."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7782-1.png")
+```
+
+## **PM~4~** mean values via `timeVariation` in `openair` by matched `HEPAperiod`
+Figure [\@ref(fig:f7782az)]{color="blue"}
+
+```{r f7782a, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_4$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period", cache=TRUE}
+timeVariation(
+iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+        iaq2d$HEPAperiod!="HEPAunmatched1",],
+pollutant = "pm4",
+cols = c("grey","orange","black","red"),
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPAperiod",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)  
+```
+```{r f7782az,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_4$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7782a-1.png")
+```
+
+## **PM~4~** mean values via `timeVariation` in `openair` by matched `HEPAperiod` Wednesday-Friday
+
+See corresponding PM~1~ section (Figure [\@ref(fig:f7782bz)]{color="blue"} )
+
+```{r f7782b, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_4$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period minus Saturday to Tuesday for clarity", cache=TRUE}
+timeVariation(
+iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+        iaq2d$HEPAperiod!="HEPAunmatched1" &
+        iaq2d$day!="Saturday" &
+        iaq2d$day!="Sunday" &
+        iaq2d$day!="Monday" &
+        iaq2d$day!="Tuesday",],
+pollutant = "pm4",
+cols = c("grey","orange","black","red"),
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPAperiod",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)  
+```
+```{r f7782bz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_4$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period minus Saturday to Tuesday for clarity"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7782b-1.png")
+```
+
+## **PM~4~** simple vector plot for a 4 day period centred on Nov 1st 2022 in the`No HEPA` state  using `xts`
+See corresponding PM~1~ section (Figure [\@ref(fig:f7782cz)]{color="blue"} ).
+
+```{r f7782c, eval = rungraphs, fig.cap = "Simple vector plot of $PM_4$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022"}
+autoplot(iaq2bPM4.xts["2022-10-30/2022-11-2"]) +
+  geom_line(color="red") +
+  labs(y="$PM_4$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f7782cz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_4$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7782c-1.png")
+```
+
+## **PM~4~** simple vector plot for a 4 day period centred on Nov 1st 2022 in the`No HEPA` state  using `xts`
+
+See corresponding PM~1~ section (Figure [\@ref(fig:f7782dz)]{color="blue"} ).
+
+```{r f7782d, eval = rungraphs, fig.cap = "Simple vector plot of $PM_4$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022 for `sensID` S11213884"}
+autoplot(iaq2bS11213884PM4.xts["2022-10-30/2022-11-2"]) +
+  geom_line(color="red") +
+  labs(y="$PM_4$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f7782dz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_4$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022 for `sensID` S11213884"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7782d-1.png")
+```
+
+## Violin plot of **PM~4~** observations without segregation by `HEPA` state
+
+See corresponding PM~1~ section (Figure [\@ref(fig:f7783z)]{color="blue"} )
+
+```{r f7783, eval = rungraphs, fig.cap="Violin plot of $PM_4$ observations by HEPA state, N= 5,097,032 (234,125 non-finite values removed)"}
+ggplot(iaq2, aes(x=HEPA, y=pm4)) +
+geom_boxplot(notch = TRUE,
+outlier.shape=NA,
+fill="green",
+width=0.1) +
+geom_violin(fill="gold",
+alpha=100) +
+scale_y_log10() +
+labs(y="$PM_{2.5-4}$ ($\\mu$g per m$^3$)")
+```
+```{r f7783z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Violin plot of $PM_4$ observations by HEPA state, N= 5,097,032 (234,125 non-finite values removed)"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7783-1.png")
+```
+
+# **PM~10~**{#7784}
+
+## **PM~10~** mean values via `timeVariation()` (`openair`) in `R`
+
+Next we will plot the variation in **PM~10~** concentrations ($\mu$g per m^3^) by hour of the day, day of the week, and month. The plot below shows the 95$\%$ confidence intervals in the mean calculated through bootstrap simulations utilising the `timeVarition()` function (Figure [\@ref(fig:f7785z)]{color="blue"} ). 
+  
+```{r f7785, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_{10}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "pm10",
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f7785z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_{10}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7785-1.png")
+```
+  
+## **PM~10~** median values via `timeVariation()` in `openair`
+
+Next we will plot the variation in **PM~10~** concentrations ($\mu$g/ m^3^) by hour of the day, day of the week, and month. This second plot below shows the median line plotted together with the 5th to 95thth and 25th to 75th quantiles (Figure [\@ref(fig:f7786z)]{color="blue"} ).
+  
+```{r f7786, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_{10}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the show the median, 5th to 95thth and 25th to 75th quantiles.", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "pm10",
+statistic = "median",
+cols = "cividis",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f7786z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_{10}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month by HEPA state. The plots show the show the median, 5th to 95thth and 25th to 75th quantiles."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7786-1.png")
+```
+
+## **PM~10~** mean values via `timeVariation` in `openair` by matched `HEPAperiod`
+
+(Figure [\@ref(fig:f7786az)]{color="blue"} ).
+
+```{r f7786a, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_{10}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period", cache=TRUE}
+timeVariation(
+iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+        iaq2d$HEPAperiod!="HEPAunmatched1",],
+pollutant = "pm10",
+cols = c("grey","orange","black","red"),
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPAperiod",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)  
+```
+```{r f7786az,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_{10}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7786a-1.png")
+```
+
+## **PM~10~** mean values via `timeVariation` in `openair` by matched `HEPAperiod` Wednesday-Saturday
+
+See corresponding PM~1~ section (Figure [\@ref(fig:f7786bz)]{color="blue"} ).
+
+```{r f7786b, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_{10}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period minus Saturday to Tuesday for clarity", cache=TRUE}
+timeVariation(
+iaq2d[iaq2d$HEPAperiod!="NoHEPAunmatched1" &
+        iaq2d$HEPAperiod!="HEPAunmatched1" &
+        iaq2d$day!="Saturday" &
+        iaq2d$day!="Monday" &
+        iaq2d$day!="Tuesday",],
+pollutant = "pm10",
+cols = c("grey","orange","black","red"),
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPAperiod",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)  
+```
+```{r f7786bz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of $PM_{10}$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. The plots show the show the mean and 95$\\%$ confidence intervals by HEPA period minus Saturday to Tuesday for clarity"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7786b-1.png")
+```
+
+## **PM~10~** simple vector plot for a 4 day period centred on Nov 1st 2022 in the`No HEPA` state  using `xts`
+
+See corresponding PM~1~ section (Figure [\@ref(fig:f7786cz)]{color="blue"} )
+
+```{r f7786c, eval = rungraphs, fig.cap = "Simple vector plot of $PM_{10}$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022"}
+autoplot(iaq2bPM10.xts["2022-10-30/2022-11-2"]) +
+  geom_line(color="red") +
+  labs(y="$PM_{10}$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f7786cz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_{10}$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7786c-1.png")
+```
+
+## **PM~10~** simple vector plot for a 4 day period centred on Nov 1st 2022 in the`No HEPA` state  using `xts`
+
+See corresponding PM~1~ section (Figure [\@ref(fig:f7786dz)]{color="blue"} ).
+
+```{r f7786d, eval = rungraphs, fig.cap = "Simple vector plot of $PM_{10}$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022 for `sensID` S11213884"}
+autoplot(iaq2bS11213884PM10.xts["2022-10-30/2022-11-2"]) +
+  geom_line(color="red") +
+  labs(y="$PM_{10}$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f7786dz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_{10}$ for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022 for `sensID` S11213884"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7786d-1.png")
+```
+
+## Violin plot of **PM~10~** observations without segregation by `HEPA` state
+
+See corresponding PM~1~ section (Figure [\@ref(fig:f7787z)]{color="blue"} )
+
+```{r f7787, eval = rungraphs, fig.cap="Violin plot of $PM_{10}$ observations by HEPA state, N= 5,097,032 (234,125 non-finite values removed)"}
+ggplot(iaq2, aes(x=HEPA, y=pm10)) +
+geom_boxplot(notch = TRUE,
+outlier.shape=NA,
+fill="green",
+width=0.1) +
+geom_violin(fill="gold",
+alpha=100) +
+scale_y_log10() +
+labs(y="$PM_{4-10}$ ($\\mu$g per m$^3$)")
+```
+```{r f7787z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Violin plot of $PM_{10}$ observations by HEPA state, N= 5,097,032 (234,125 non-finite values removed)"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7787-1.png")
+```
+
+# Indoor vs Outdoor{#783x}
+
+Now that we have combined inddor and outdoor particulate readings every hour in `iaqHr` we can use `timeVariation()` to elucidate any relationship. As this is irrespective of HEPA we can use the entire `iaqHr` data set.
+
+## **PM~1-10~** External and **PM~1~** Internal mean values via `timeVariation` in `openair` for `iaq`
+
+See corresponding PM~1~ section (Figure [\@ref(fig:f783z)]{color="blue"} )
+
+```{r f783, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of internal $PM_1$ with external $PM_{10}$ concentrations ($\\mu$g per m$^3$) for values less than 100 $\\mu$g per m$^3$, by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaqHr[iaqHr$spike2 == "<100",],
+pollutant = c("pm1", "pm10Ext"),
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = FALSE,
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE)
+```
+```{r f783z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of internal $PM_1$ with external $PM_{10}$ concentrations ($\\mu$g per m$^3$) for values less than 100 $\\mu$g per m$^3$, by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f783-1.png")
+```
+
+## **PM~1-10~** External simple vector plot for a 3 day period centred on Nov 1st 2022 in the`No HEPA` state  using `xts`
+
+
+
+We can now see that there is a spike across all size ranges. **Was this seen in the pm10Ext data?** See corresponding PM~1~ section (Figure [\@ref(fig:f783az)]{color="blue"} )
+
+```{r f783a, eval = rungraphs, fig.cap = "Simple vector plot of $PM_{1-10}$ External for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022 for `sensID` taken from a sensor on Parker Street in Cambridge located 3.53 kilometers away from the hospital wards studied."}
+autoplot(iaqHrPM10Ext.xts["2022-10-30/2022-11-2"]) +
+  geom_line(color="purple") +
+  labs(y="$PM_1$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f783az,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_{1-10} External for `NoHEPAmatched2` by date for the period 30th October to 2nd November 2022 for `sensID` taken from a sensor on Parker Street in Cambridge located 3.53 kilometers away from the hospital wards studied."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f783a-1.png")
+```
+
+## **PM~1-10~** External simple vector plot for a 3 day period centred on Nov 5th 2022 (Bonfire night) in the`No HEPA` state  using `xts`
+
+**Was the pm1 spike seen in the pm10Ext data?** Figure [\@ref(fig:f783abz)]{color="blue"}.
+
+```{r f783ab, eval = rungraphs, fig.cap = "Simple vector plot of $PM_{1-10}$ External for `NoHEPAmatched2` by date for the period 4th to 6th November 2022 taken from a sensor on Parker Street in Cambridge located 3.53 kilometers away from the hospital wards studied."}
+autoplot(iaqHrPM10Ext.xts["2022-11-4/2022-11-6"]) +
+  geom_line(color="purple") +
+  labs(y="$PM_1$ ($\\mu$g per m$^3$)", x="Date") 
+```
+```{r f783abz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Simple vector plot of $PM_{1-10}$ External for `NoHEPAmatched2` by date for the period 4th to 6th November 2022 taken from a sensor on Parker Street in Cambridge located 3.53 kilometers away from the hospital wards studied."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f783ab-1.png")
+```
+
+## Parker Street external air quality sensor 
+
+```{r f783b, fig.cap="Satelite view of the Cambridge Parker Street urban traffic air quality sensor with distance to and location of the AAirDS hospital wards."}
+
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/Screenshot_2023-01-28_at_07.27.39.png")
+```
+
+```{r f783b2, fig.cap="Simplified street view of the Cambridge Parker Street urban traffic air quality sensor with distance to and location of the AAirDS hospital wards."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/Screenshot_2023-01-28_at_07.27.57.png")
+```

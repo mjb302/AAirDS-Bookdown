@@ -1,0 +1,774 @@
+2023-06-29 MJ Butler, CUHNHSFT based in part on code obtained from R Goudie and C Beggs, MRC Biostatistics unit.
+
+# **Microbiology Study - Part of AAirDS-E** 
+
+## **Hypotheses**
+
+Installing portable high efficiency particulate air (HEPA) filters with integral UV-C lamps (Air Cleaning Units, ACUs) can reduce the burden of microbial pathogens in inpatient wards. 
+
+Data collection: Thermofisher Aerosol Sense samplers (‘air samplers’) will be used for 24 hours in predetermined locations on intervention and control wards. Surface samples will also be collected from predetermined high touch and inaccessible/ non-contact surfaces. These measurements will be collected weekly as availability of equipment allows.
+
+Molecular microbiological analysis of the samples collected will be employed to examine awide variety of pathogens simultaneously and to look for antimicrobial resistance genes thatare a particular problem in hospital acquired infections (using Fluidigm microarray for RNA quantification). 
+
+## **Analysis Plan:** 
+
+### **The primary measures of microbial air quality will be:**
+
+1. Simple count of organisms detected
+2. Integrated measure of CT value and counts, to produce a ‘microbial density index’
+3. Comparison will be between
+  3.1. Intervention ward: ACU off and ACU on
+  3.2. Intervention and non-intervention wards
+  
+Additional analysis considered measures of diversity and exploration of the data. 
+
+Air samples were the principal measures of interest but results of the surface swab samples were also explored.
+
+### **Sampling methodology and locations**
+
+Air was sampled using a ThermoFisher Aerosol Sense™ sampler [https://www.thermofisher.com/order/catalog/product/AEROSOLSENSE](https://www.thermofisher.com/order/catalog/product/AEROSOLSENSE), for 24 hours in a predetermined location on an intervention and control ward (Figure [\@ref(fig:f1300)]{color="blue"})
+
+```{r f1300,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Sampling locations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_00_1.png")
+```
+
+Three surface swabs were taken from the same control and intervention wards which were demarcated clearly at fixed positions on the wards on the same day and time on alternating weeks. These surface swabs will be from:
+
+1.	High contact point - Worktop surface - SurfaceSwabB7 & SurfaceSwabX7
+2.	High contact point - Sink (~1m from the ground) - SurfaceSwabB8 & SurfaceSwabX8
+3.	Non-contact point - Floor - under bed axel - SurfaceSwabB9 & SurfaceSwabX9
+
+Nucleic acids were extracted from the air sampler cartridge as well as surface swabs, and extracted using a modified BOOM method (total RNA and DNA). Up to 96 bacterial, viral, and fungal pathogens were detected using a BioMark HD qPCR system in the Baker Lab at the University of Cambridge. The BioMark HD is a microfluidics qPCR system that can simultaneously detect 96 targets in 96 samples, allowing high throughput screening of complex metagenomic material. 
+
+The system has been tested on faecal, water, environmental, respiratory and air samples and found to be reliable, cost effective, and scalable. To prepare individual 10X assays for the BioMark HD qPCR, 2.5 ul of each forward and reverse primer pair (100 uM), were combined with 25 ul of 2X Assay Loading Reagent and 22.5 ul of TE buffer to a final primer concentration of 500nM. The Microbial targets for the outlined study are identified below (Figure [\@ref(fig:f1300b)]{color="blue"}) . 
+
+```{r f1300b,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="92 pathogens detectable by the fluidigm microfluidic array. Black indicates those pathogens and genetic targets that were detected at some point over the course of the sampling period. Red indicates no detection."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_00_2.png")
+```
+
+Pooled assays for pre-amplification were produced by combining 1ul of all primer pairs and diluting to a final volume of 200 ul in TE buffer (Invitrogen, Thermofisher Scientific) to give a final primer concentration of 500 nM. Stock solutions of the pooled and individual assay mixtures were stored at -20°C. 4ul of nucleic acid extract from each fragment of the air sampler was reverse-transcribed using Fluidigm Reverse Transcriptase as per manufacturer instructions (Invitrogen, Thermofisher Scientific). 
+
+Pre-amplification of cDNA was then be performed to minimise sampling bias, using the Fluidigm PreAmp Master Mix Kit. 1.25 ul of reverse transcribed samples were then combined with 2.5 ul 2X PreAmp Master Mix, 0.5 ul pooled primers (500nM), and 0.75 ul and nuclease-free water. Reactions were run using optimized cycling conditions of 95°C for 10 minutes, followed by 17 cycles of 95°C for 15 seconds and 60°C for 2 minutes, and a final hold at 4°C. Finally, samples underwent exonuclease I (Exo-I) (NEB) treatment to degrade any remaining single stranded DNA in accordance with manufacturer’s instructions, before dilution 1:5 with TE buffer. 
+
+After preparation, samples were prepared for IFC (integrated fluidics circuit) loading as per manufacturer’s instructions, with 2.5 ul of 2× SsoFast™ EvaGreen® Supermix Low ROX (BioRad, Watford, UK) and 0.25 ul of 20× DNA Binding Dye Sample Loading Reagent combined with 2.25 ul of the Exo-I treated samples. 5 ul of each assay mix and sample mix was loaded into the suitable IFC inlets and the IFC loaded using the Fluidigm Juno. 
+Once complete, the IFC was moved to the BioMark HD for qPCR using the pre-programmed thermal protocol: GE Fast 96x96 PCR+Melt v2.pcl. Preliminary thresholding of the amplification data was performed using the Fluidigm Real-Time PCR Analysis Software, before raw data being exported and processed in R (RStudio, Boston, USA) to apply manually defined melting curve peak thresholds. 
+
+Positive samples were determined to be those with CT values <= 23 and with melt curves within the previously determined range for the assay target. Differences in the number of pathogens detected when between the locations where the air filter is on or off will be compared by Mann-Whitney U-test. Statistical significance will be inferred when p values are <0.05.
+
+```{r}
+#library(tidyverse)
+#library(glue)
+#library(ggplot2)
+```
+
+
+
+```{r}
+#Creates a dataframe from the G6 micro data
+G6 <- read_csv("/Users/mattbutler/Desktop/COVID-19/IAQ data/G6.csv")
+```
+
+```{r}
+#Expands it to include separate month and day values for graphing
+G6_longer <- G6 %>%
+  pivot_longer(cols = -c(Ward, Species, Group, Type, Sample),
+               names_to = c("month", "date"),
+               names_sep = "_") %>%
+  mutate(full_date = glue("{date} {month}"))
+
+G6_longer$Ward <- as.factor(G6_longer$Ward)
+G6_longer$Species <- as.factor(G6_longer$Species)
+G6_longer$Group <- as.factor(G6_longer$Group)
+G6_longer$Type <- as.factor(G6_longer$Type)
+G6_longer$Sample <- as.factor(G6_longer$Sample)
+G6_longer$month <- as.factor(G6_longer$month)
+G6_longer$value <- as.numeric(G6_longer$value)
+
+#G6_longer_means <- aggregate(value ~ month + Species + Sample,
+ #                            data = G6_longer,
+  #                           FUN = function(x) c(mean = mean(x),
+   #                                              se = std.error(x)))
+
+G6_longer_means <- read_csv("/Users/mattbutler/Desktop/COVID-19/IAQ data/G6_longer_means.csv")
+
+G6_longer_means$month = factor(G6_longer_means$month, levels=c("Sep","Oct","Nov","Dec", "Jan", "Feb", "Mar"))
+```
+
+```{r}
+#Creates a colourblind frindly pallette cbp2
+
+cbp2 <- c("#000000", "#E69F00", "#56B4E9", "#009E73",
+          "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+```
+
+```{r}
+#Creates a data frame from the F6 micro data
+F6 <- read_csv("/Users/mattbutler/Desktop/COVID-19/IAQ data/F6.csv")
+```
+
+```{r}
+#Expands it to include separate month and day values for graphing
+F6_longer <- F6 %>%
+  pivot_longer(cols = -c(Ward, Species, Group, Type, Sample),
+               names_to = c("month", "date"),
+               names_sep = "_") %>%
+  mutate(full_date = glue("{date} {month}"))
+
+F6_longer$Ward <- as.factor(F6_longer$Ward)
+F6_longer$Species <- as.factor(F6_longer$Species)
+F6_longer$Group <- as.factor(F6_longer$Group)
+F6_longer$Type <- as.factor(F6_longer$Type)
+F6_longer$Sample <- as.factor(F6_longer$Sample)
+F6_longer$month <- as.factor(F6_longer$month)
+F6_longer$value <- as.numeric(F6_longer$value)
+
+#F6_longer_means <- aggregate(value ~ month + Species + Sample, data = F6_longer, FUN = function(x) c(mean = mean(x), se = std.error(x)))
+
+F6_longer_means <- read_csv("/Users/mattbutler/Desktop/COVID-19/IAQ data/F6_longer_means.csv")
+
+F6_longer_means$month = factor(F6_longer_means$month, levels=c("Sep","Oct","Nov","Dec", "Jan", "Feb", "Mar"))
+```
+
+## **Line plots**
+
+Firstly we will plot each detected target as an individual line graph averaged by month and grouped by sample type; air, worktop, sink and floor. Firstly for G6 control ([\@ref(fig:f1301z)]{color="blue"})) and then for F6 intervention wards (Figure [\@ref(fig:f1302z)]{color="blue"}).
+
+```{r f1301, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Line plots for each pathogenic target by month for G6 control; means for each month are grouped by sample type and are presented with s.e bars"}
+#pdf("/Users/mattbutler/Desktop/COVID-19/IAQ data/MicroGraphs/G6_temporal_line_by_species.pdf", width = 40/cm(1), height = 45/cm(1))
+
+G6_longer_means %>%
+  mutate(month = fct_relevel(month, 
+           "Sep","Oct","Nov","Dec", "Jan", "Feb", "Mar")) %>%
+  ggplot(aes(x = month,
+           y = mean,
+           colour = Sample,
+           group = Sample)) +
+  geom_line(linewidth = 0.4, alpha = 0.6) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width=.2, 
+                position=position_dodge(.9)) +
+  geom_point(size = 0.8, alpha = 0.6) +
+  facet_wrap(Species ~ ., ncol = 5) +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.y = element_line(linewidth = 0.4))
+#graphics.off()
+```
+
+```{r f1301z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Line plots for each pathogenic target by month for G6 control"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_01-1.png")
+```
+
+```{r f1302, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Line plots for each pathogenic target by month for F6 intervention; means for each month are grouped by sample type and are presented with s.e bars"}
+#pdf("/Users/mattbutler/Desktop/COVID-19/IAQ data/MicroGraphs/G6_temporal_line_by_species.pdf", width = 40/cm(1), height = 45/cm(1))
+F6_longer_means %>%
+  mutate(month = fct_relevel(month, 
+           "Sep","Oct","Nov","Dec", "Jan", "Feb", "Mar")) %>%
+  ggplot(aes(x = month,
+           y = mean,
+           colour = Sample,
+           group = Sample)) +
+  geom_line(linewidth = 0.4, alpha = 0.6) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width=.2, 
+                position=position_dodge(.9)) +
+  geom_point(size = 0.8, alpha = 0.6) +
+  facet_wrap(Species ~ ., ncol = 5) +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.y = element_line(linewidth = 0.4))
+#graphics.off()
+```
+
+```{r f1302z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Line plots for each pathogenic target by month for F6 intervention"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_02-1.png")
+```
+
+## **Heatmaps**
+
+In order to better visualize the amounts of genetic material we can plot the CT values over time (averaged by month) for each of the detected targets. These heatmaps displayed for each of the air, floor, sink and worktop sample sets taken on G6 our control (No HEPA) ward (Figure [\@ref(fig:f1303z)]{color="blue"})) followed by the same on F6 intervention ward (Figure [\@ref(fig:f1304z)]{color="blue"})). Each heatmap has a separate row for each target on the y axis and is plotted by day of the month on the x axis.
+
+```{r f1303, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Heatmap for each of the air, floor, sink and worktop sample sets taken on G6 control; separate row for each target ordered by CT values on the y axis is plotted against month on the x axis"}
+#pdf("/Users/mattbutler/Desktop/COVID-19/IAQ data/MicroGraphs/G6_heatmap_temporal_by_location.pdf", width = 200/cm(1), height = 80/cm(1))
+G6_longer_means %>%
+  mutate(month = fct_relevel(month, 
+           "Sep","Oct","Nov","Dec", "Jan", "Feb", "Mar")) %>%
+ggplot(aes(x = month,
+           y = reorder(Species, mean),
+           fill = mean,
+           label = round(mean, 1),
+           group = Sample,
+           na.rm=TRUE)) +
+  geom_tile(colour = "black") +
+  geom_text(size = 3.5, colour = "black", na.rm=TRUE) +
+  facet_wrap(Sample ~ ., ncol = 4) +
+  scale_fill_gradient(low = "#fb0106", high = "white") + 
+  theme_minimal() +
+  theme(axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        legend.position = "bottom")
+#graphics.off()
+```
+
+```{r f1303z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Heatmap for each of the air, floor, sink and worktop sample sets taken on G6 control; separate row for each target ordered by CT values on the y axis is plotted against month on the x axis"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_03-1.png")
+```
+
+```{r f1304, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Heatmap for each of the air, floor, sink and worktop sample sets taken on F6 intervention; separate row for each target ordered by CT values on the y axis is plotted against month on the x axis"}
+#pdf("/Users/mattbutler/Desktop/COVID-19/IAQ data/MicroGraphs/G6_heatmap_temporal_by_location.pdf", width = 200/cm(1), height = 80/cm(1))
+F6_longer_means %>%
+  mutate(month = fct_relevel(month, 
+           "Sep","Oct","Nov","Dec", "Jan", "Feb", "Mar")) %>%
+ggplot(aes(x = month,
+           y = reorder(Species, mean),
+           fill = mean,
+           label = round(mean, 1),
+           group = Sample,
+           na.rm=TRUE)) +
+  geom_tile(colour = "black") +
+  geom_text(size = 3.5, colour = "black", na.rm=TRUE) +
+  facet_wrap(Sample ~ ., ncol = 4) +
+  scale_fill_gradient(low = "#fb0106", high = "white") + 
+  theme_minimal() +
+  theme(axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        legend.position = "bottom")
+#graphics.off()
+```
+
+```{r f1304z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Heatmap for each of the air, floor, sink and worktop sample sets taken on F6 intervention; separate row for each target ordered by CT values on the y axis is plotted against month on the x axis"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_04-1.png")
+```
+
+
+```{r}
+#Creates an F6 dataframe for the air, floor, sink and worktop samples
+F6_air_Wktop_sink_floor <- read_csv("/Users/mattbutler/Desktop/COVID-19/IAQ data/F6_air_wktop_sink_floor.csv")
+```
+
+
+```{r}
+#Creates a G6 dataframe for the air, floor, sink and worktop samples
+G6_air_Wktop_sink_floor <- read_csv("/Users/mattbutler/Desktop/COVID-19/IAQ data/G6_air_wktop_sink_floor.csv")
+```
+
+```{r}
+#Creates a G6F6 dataframe for the air, floor, sink and worktop samples
+G6F6_air_Wktop_sink_floor <- read_csv("/Users/mattbutler/Desktop/COVID-19/IAQ data/G6F6_air_wktop_sink_floor.csv")
+```
+
+```{r}
+#In the two data frames above a value of 30 for CT indicates absent target i.e. the detection limit for the test arbitrarily set at 30 for the purposes of graphical display. The below cod creates a data frame fro each ward whereby 30 is replaced by NA.
+variables <- c("Air", "Sink", "Worktop", "Floor")
+F6_air_Wktop_sink_floor_detected <- F6_air_Wktop_sink_floor %>%
+  mutate(across(all_of(variables), ~ ifelse(. == 30, NA, .)))
+G6_air_Wktop_sink_floor_detected <- G6_air_Wktop_sink_floor %>%
+  mutate(across(all_of(variables), ~ ifelse(. == 30, NA, .)))
+G6F6_air_Wktop_sink_floor_detected <- G6F6_air_Wktop_sink_floor %>%
+  mutate(across(all_of(variables), ~ ifelse(. == 30, NA, .)))
+```
+
+## **Scatter plots**
+
+In order to better understand the relationship between the differrent samples we will firstly plot simple scatter plots. On each plot we have used a cycle threshold of 30 to indicate absence of amplification for clarity (the fluidigm system's actual CT limit for detection was 23) (Control-Air:Floor Figure [\@ref(fig:f1305z)]{color="blue"}, Control-Air:Worktop Figure [\@ref(fig:f1306z)]{color="blue"}, Control-Air:Sink Figure [\@ref(fig:f1307z)]{color="blue"}, Intervention-Air:Floor Figure [\@ref(fig:f1308z)]{color="blue"}, Intervention-Air:Worktop Figure [\@ref(fig:f1309z)]{color="blue"} & Intervention-Air:Sink Figure [\@ref(fig:f1310z)]{color="blue"})
+
+```{r f1305, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot for of air and floor samples for G6 (No HEPA) ward with linear regression line"}
+#Creates a scatter plot for the air & floor for G6 (No HEPA) ward with linear regression line.
+#pdf("/Users/mattbutler/Desktop/COVID-19/IAQ data/MicroGraphs/G6_air_floor_lm.pdf", width = 16/cm(1), height = 16/cm(1))
+plot <- ggplot(G6_air_Wktop_sink_floor, aes(y = Air, x = Floor, color = Type)) +
+  geom_point(alpha = 0.5)+
+  scale_colour_manual(values=cbp2)
+lines <- geom_smooth(data = G6_air_Wktop_sink_floor_detected, aes(y = Air, x = Floor, color = Type), method = "lm", se = FALSE)
+final_plot <- plot + lines
+print(final_plot)
+#graphics.off()
+```
+```{r f1305z, echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot for of air and floor samples for G6 (No HEPA) ward with linear regression line"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_05-1.png")
+```
+
+```{r f1306, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot for of air and worktop samples for G6 (No HEPA) ward with linear regression line"}
+#pdf("/Users/mattbutler/Desktop/COVID-19/IAQ data/MicroGraphs/G6_air_wktop_lm.pdf", width = 16/cm(1), height = 16/cm(1))
+#Creates a scatter plot for the air & worktop samples for G6 (No HEPA) ward with linear regression line.
+plot <- ggplot(G6_air_Wktop_sink_floor, aes(y = Air, x = Worktop, color = Type)) +
+  geom_point(alpha = 0.5)+
+  scale_colour_manual(values=cbp2)
+lines <- geom_smooth(data = G6_air_Wktop_sink_floor_detected, aes(y = Air, x = Worktop, color = Type), method = "lm", se = FALSE)
+final_plot <- plot + lines
+print(final_plot)
+#graphics.off()
+```
+```{r f1306z, echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot for of air and worktop samples for G6 (No HEPA) ward with linear regression line"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_06-1.png")
+```
+
+```{r f1307, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot for of air and sink samples for G6 (No HEPA) ward with linear regression line"}
+#Creates a scatter plot for the air and sink samples for G6 (No HEPA) ward with linear regression line.#pdf("/Users/mattbutler/Desktop/COVID-19/IAQ data/MicroGraphs/G6_air_sink_lm.pdf", width = 16/cm(1), height = 16/cm(1))
+plot <- ggplot(G6_air_Wktop_sink_floor, aes(y = Air, x = Sink, color = Type)) +
+  geom_point(alpha = 0.5)+
+  scale_colour_manual(values=cbp2)
+lines <- geom_smooth(data = G6_air_Wktop_sink_floor_detected, aes(y = Air, x = Sink, color = Type), method = "lm", se = FALSE)
+final_plot <- plot + lines
+print(final_plot)
+#graphics.off()
+```
+```{r f1307z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot for of air and sink samples for G6 (No HEPA) ward with linear regression line"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_07-1.png")
+```
+
+```{r f1308, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot for of air and floor samples for F6 (HEPA) ward with linear regression line"}
+#Creates a scatter plot for the air and floor for F6 (HEPA) ward with linear regression line.#pdf("/Users/mattbutler/Desktop/COVID-19/IAQ data/MicroGraphs/F6_air_floor_lm.pdf", width = 16/cm(1), height = 16/cm(1))
+plot <- ggplot(F6_air_Wktop_sink_floor, aes(y = Air, x = Floor, color = Type)) +
+  geom_point(alpha = 0.5)+
+  scale_colour_manual(values=cbp2)
+lines <- geom_smooth(data = F6_air_Wktop_sink_floor_detected, aes(y = Air, x = Floor, color = Type), method = "lm", se = FALSE)
+final_plot <- plot + lines
+print(final_plot)
+#graphics.off()
+```
+```{r f1308z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot for of air and floor samples for F6 (HEPA) ward with linear regression line"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_08-1.png")
+```
+
+```{r f1309, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot for of air and worktop samples for F6 (HEPA) ward with linear regression line"}
+#Creates a scatter plot for the air and worktop samples for F6 (HEPA) ward with linear regression line.
+#pdf("/Users/mattbutler/Desktop/COVID-19/IAQ data/MicroGraphs/F6_air_wktop_lm.pdf", width = 16/cm(1), height = 16/cm(1))
+plot <- ggplot(F6_air_Wktop_sink_floor, aes(y = Air, x = Worktop, color = Type)) +
+  geom_point(alpha = 0.5)+
+  scale_colour_manual(values=cbp2)
+lines <- geom_smooth(data = F6_air_Wktop_sink_floor_detected, aes(y = Air, x = Worktop, color = Type), method = "lm", se = FALSE)
+final_plot <- plot + lines
+print(final_plot)
+#graphics.off()
+```
+```{r f1309z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot for of air and worktop samples for F6 (HEPA) ward with linear regression line"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_09-1.png")
+```
+
+```{r f1310, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot for of air and sink samples for F6 (HEPA) ward with linear regression line"}
+#Creates a scatter plot for the air and sink sammples for F6 (HEPA) ward with linear regression line.
+#pdf("/Users/mattbutler/Desktop/COVID-19/IAQ data/MicroGraphs/F6_air_sink_lm.pdf", width = 16/cm(1), height = 16/cm(1))
+plot <- ggplot(F6_air_Wktop_sink_floor, aes(y = Air, x = Sink, color = Type)) +
+  geom_point(alpha = 0.5)+
+  scale_colour_manual(values=cbp2)
+lines <- geom_smooth(data = F6_air_Wktop_sink_floor_detected, aes(y = Air, x = Sink, color = Type), method = "lm", se = FALSE)
+final_plot <- plot + lines
+print(final_plot)
+#graphics.off()
+```
+```{r f1310z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot for of air and sink samples for F6 (HEPA) ward with linear regression line"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_10-1.png")
+```
+
+## **Correlation analysis**
+
+In order to quantify the degree of relationship we will use pearson correlation analysis for each of the combinations of samples first for control (G6) and then the intervention (F6) ward. As can be seen from the below tables there appears to be a greater correlation between the different swab locations for the ward without the HEPA/UVC ACU intervention compared with the HEPA/UVC ward. This might suggest that transmission routes via the air onto horizontal surfaces had been disrupted through the utlisation of HEPA/UVC air cleaners.
+
+Pair-wise Pearson correlation analysis results for wards G6 (without ACU) & F6 (with ACU), with Fisher r-to-z transformation test (http://vassarstats.net/rdiff.html) are shown below first for **all pathogenic targets** (Figure [\@ref(fig:f1310bz)]{color="blue"}), **gram-negative bacilli (GNB)** (Figure [\@ref(fig:f1310cz)]{color="blue"}), **gram-positive bacteria (GPC)** (Figure [\@ref(fig:f1310dz)]{color="blue"}), **antimicrobial resistance genes (AMR)** (Figure [\@ref(fig:f1310ez)]{color="blue"}), **fungi** (Figure [\@ref(fig:f1310fz)]{color="blue"}) & **viruses** (Figure [\@ref(fig:f1310gz)]{color="blue"}).
+
+___
+
+**Comments on results for all groups aggregated together** (Figure [\@ref(fig:f1310bz)]{color="blue"})
+
+1. The CT scores were consistently lower in G6 (without ACU) compared with F6 (with ACU) for all sample locations.
+
+2. With the exception of the sink, the observed effects are all statistically significant, but relatively small.
+
+3. The correlations between the air samples and the other samples are markedly stronger in G6 compared with F6. However, this difference only reached significance for the air:worktop and air:floor relationships.
+
+___
+
+**Comments on results for the gram-negative bacilli** (Figure [\@ref(fig:f1310cz)]{color="blue"})
+
+1. With the exception of the sink all the CT scores were lower in G6 (withoutACU) compared with F6 (with ACU) for all sample locations.
+
+2. The observed effects are all statistically significant, except for the sink.
+
+3. No significant difference was observed between G6 and F6 for any of the correlations.
+
+___
+
+**Comments on results for the gram-positive bacteria** (Figure [\@ref(fig:f1310dz)]{color="blue"})
+
+1. All the CT scores were lower in G6 (without ACU) compared with F6 (with ACU) for all sample locations. However, only the observed reductions in the air and on the floor reached significance.
+
+2. The observed reductions were all relatively small.
+
+3. No significant difference was observed between G6 and F6 for any of the correlations.
+
+4. However, despite not reaching significance, the correlations were generally weaker in F6 compared with G6.
+
+___
+
+**Comments on results for the antimicrobial resistance genes** (Figure [\@ref(fig:f1310ez)]{color="blue"})
+
+1. The CT scores were consistently lower in G6 (without ACU) compared with F6 (with ACU) for all sample locations.
+
+2. However, the observed effects only reached statistical significance for the air and the worktop, with a small effect size.
+
+3. The correlations between the air samples and the other samples are markedly stronger in G6 compared with F6. However, this difference only reached significance for the air:worktop and air:floor relationships.
+
+4. The floor:sink correlation was also significantly stronger in G6 compared with F6.
+
+___
+
+**Comments on results for the fungi** (Figure [\@ref(fig:f1310fz)]{color="blue"})
+
+1. All the CT scores were lower in G6 (without ACU) compared with F6 (with ACU) for all sample locations. However, only the observed reductions in the air and on the worktop reached significance.
+
+2. The observed reduction in fungi in the air exhibited a large effect size.
+
+3. No significant difference was observed between G6 and F6 for any of the correlations.
+
+___
+
+**Comments on results for the viruses** (Figure [\@ref(fig:f1310gz)]{color="blue"})
+
+1. Except for the worktop, the CT scores were lower in G6 (without ACU) compared with F6 (with ACU) for the sample locations. However, only the observed reduction in the air reached significance, with a large effect size.
+
+2. No significant difference was observed between G6 and F6 for any of the correlations.
+
+___
+
+```{r}
+#round(cor(G6_air_Wktop_sink_floor_detected[,c("Air","Worktop", "Sink", "Floor")], use="pairwise.complete.obs"),2)
+```
+
+```{r}
+
+#round(cor(F6_air_Wktop_sink_floor_detected[,c("Air","Worktop", "Sink", "Floor")], use="pairwise.complete.obs"),2)
+```
+
+```{r f1310bz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Pair-wise Pearson correlation analysis results for wards G6 (without ACU) and F6 (with ACU), with Fisher r-to-z transformation test (http://vassarstats.net/rdiff.html), All pathogenic targets. Statistically significant values shown in red."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_10-1b.png")
+```
+```{r f1310cz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Pair-wise Pearson correlation analysis results for wards G6 (without ACU) and F6 (with ACU), with Fisher r-to-z transformation test (http://vassarstats.net/rdiff.html), Gram negative bacilli only. Statistically significant values shown in red."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_10-1c.png")
+```
+```{r f1310dz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Pair-wise Pearson correlation analysis results for wards G6 (without ACU) and F6 (with ACU), with Fisher r-to-z transformation test (http://vassarstats.net/rdiff.html), Gram positive bacteria only. Statistically significant values shown in red."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_10-1d.png")
+```
+```{r f1310ez,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Pair-wise Pearson correlation analysis results for wards G6 (without ACU) and F6 (with ACU), with Fisher r-to-z transformation test (http://vassarstats.net/rdiff.html), Antimicrobial resistance genes only. Statistically significant values shown in red."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_10-1e.png")
+```
+```{r f1310fz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Pair-wise Pearson correlation analysis results for wards G6 (without ACU) and F6 (with ACU), with Fisher r-to-z transformation test (http://vassarstats.net/rdiff.html), Fungi only. Statistically significant values shown in red."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_10-1f.png")
+```
+```{r f1310gz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Pair-wise Pearson correlation analysis results for wards G6 (without ACU) and F6 (with ACU), with Fisher r-to-z transformation test (http://vassarstats.net/rdiff.html), Viruses only. Statistically significant values shown in red."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_10-1g.png")
+```
+Calculate p.values for each observed correlation
+```{r}
+air_worktop_noHEPA_p_value <- cor.test(G6_air_Wktop_sink_floor$Air,G6_air_Wktop_sink_floor$Worktop, use="pairwise.complete.obs")$p.value
+
+air_worktop_HEPA_p_value <- cor.test(F6_air_Wktop_sink_floor$Air,F6_air_Wktop_sink_floor$Worktop, use="pairwise.complete.obs")$p.value
+
+air_sink_noHEPA_p_value <- cor.test(G6_air_Wktop_sink_floor$Air,G6_air_Wktop_sink_floor$Sink, use="pairwise.complete.obs")$p.value
+
+air_sink_HEPA_p_value <- cor.test(F6_air_Wktop_sink_floor$Air,F6_air_Wktop_sink_floor$Sink, use="pairwise.complete.obs")$p.value
+
+air_floor_noHEPA_p_value <- cor.test(G6_air_Wktop_sink_floor$Air,G6_air_Wktop_sink_floor$Floor, use="pairwise.complete.obs")$p.value
+
+air_floor_HEPA_p_value <- cor.test(F6_air_Wktop_sink_floor$Air,F6_air_Wktop_sink_floor$Floor, use="pairwise.complete.obs")$p.value
+```
+
+Enter presence/absence of microbial DNA/RNA by sample site (columns) and ward (rows)
+```{r}
+observed <- matrix(c(257, 250, 332, 529, 499, 505, 423, 226), nrow = 2, ncol = 4, byrow = TRUE)
+```
+
+Perform chi-squared test
+```{r}
+result <- chisq.test(observed)
+print(result)
+```
+
+Scatter function with linear regression lines for all detected values (minus 30)
+
+```{r}
+
+ScatterLmF6 <- function(A){
+
+plot <- ggplot(F6_air_Wktop_sink_floor, aes(y = Air, x = A, color = Type)) +
+  geom_point(alpha = 0.5)+
+  scale_colour_manual(values=cbp2)
+lines <- geom_smooth(data = F6_air_Wktop_sink_floor_detected, aes(y = Air, x = A, color = Type), method = "lm", se = FALSE)
+final_plot <- plot + lines
+print(final_plot)
+}
+```
+
+## **3D scatter plots**
+
+In order to better understand the relationship between the different swab sample and given that there is seemingly a linear relationship between the majority of targets we will now plot the highest correlated locations together on an x,y & z axis. The CT values for the sink swabs are shown as a color scale for the scatter mares with dark red indicating higher concentration (lower CT). Dark grey indicates where NA values for the sink (Ward G6 = Figure [\@ref(fig:f1311z)]{color="blue"}; Ward F6 = Figure [\@ref(fig:f1311bz)]{color="blue"}).
+
+```{r f1311, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "3D Scatter plot for of all 4 sample types on ward G6 (control) (x=Air, y=Floor, z=Worktop, with sink CT represented as colour scale depicted."}
+library(plotly)
+
+#load data
+samples_lm <- lm(Air ~ 0 + Worktop + Floor,data = G6_air_Wktop_sink_floor_detected)
+samples_lm <- lm(Air ~ Worktop + Floor,data = G6_air_Wktop_sink_floor_detected)
+
+#Setup Axis
+axis_x <- seq(min(G6_air_Wktop_sink_floor_detected$Floor, na.rm=TRUE), max(G6_air_Wktop_sink_floor_detected$Floor, na.rm=TRUE))
+axis_y <- seq(min(G6_air_Wktop_sink_floor_detected$Worktop, na.rm=TRUE), max(G6_air_Wktop_sink_floor_detected$Worktop, na.rm=TRUE))
+
+#Sample points
+samples_lm_surface <- expand.grid(Floor = axis_x,Worktop = axis_y,KEEP.OUT.ATTRS = F)
+samples_lm_surface$Air <- predict.lm(samples_lm, newdata = samples_lm_surface)
+samples_lm_surface <- acast(samples_lm_surface, Worktop ~ Floor, value.var = "Air") #y ~ x
+
+
+
+fig <- plot_ly(G6_air_Wktop_sink_floor_detected, x = ~Air, y = ~Floor, z = ~Worktop, marker = list(color = ~Sink, colorscale = c("white","red"), showscale = TRUE, reversescale = TRUE))
+fig <- fig %>% add_markers()
+fig <- fig %>% layout(scene = list(xaxis = list(title = 'Air (CT)'),
+                     yaxis = list(title = 'Floor (CT)'),
+                     zaxis = list(title = 'Worktop  (CT)')),
+                     annotations = list(
+                       x = 1.13,
+                       y = 1.05,
+                       text = 'Sink (CT)',
+                       xref = 'paper',
+                       yref = 'paper',
+                       showarrow = FALSE
+                       ))
+
+fig <- add_trace(p = fig,
+                       z = samples_lm_surface,
+                       x = axis_x,
+                       y = axis_y,
+                       type = "surface")
+
+fig
+```
+```{r f1311z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="3D Scatter plot for of all 4 sample types on ward G6 (control)  (x=Air, y=Floor, z=Worktop, with sink CT represented as colour scale depicted in red hues. Linear regression plane overlaid on blue to yellow colour scale"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_11_1.png")
+```
+```{r f1311b, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "3D Scatter plot for of all 4 sample types on ward F6 (Intervention) (x=Air, y=Floor, z=Worktop, with sink CT represented as colour scale depicted."}
+library(plotly)
+
+#load data
+samples_lm <- lm(Air ~ 0 + Worktop + Floor,data = F6_air_Wktop_sink_floor_detected)
+
+#Setup Axis
+axis_x <- seq(min(F6_air_Wktop_sink_floor_detected$Floor, na.rm=TRUE), max(F6_air_Wktop_sink_floor_detected$Floor, na.rm=TRUE))
+axis_y <- seq(min(F6_air_Wktop_sink_floor_detected$Worktop, na.rm=TRUE), max(F6_air_Wktop_sink_floor_detected$Worktop, na.rm=TRUE))
+
+#Sample points
+samples_lm_surface <- expand.grid(Floor = axis_x,Worktop = axis_y,KEEP.OUT.ATTRS = F)
+samples_lm_surface$Air <- predict.lm(samples_lm, newdata = samples_lm_surface)
+samples_lm_surface <- acast(samples_lm_surface, Worktop ~ Floor, value.var = "Air") #y ~ x
+
+
+
+fig <- plot_ly(F6_air_Wktop_sink_floor_detected, x = ~Air, y = ~Floor, z = ~Worktop, marker = list(color = ~Sink, colorscale = c("white","red"), showscale = TRUE, reversescale = TRUE))
+fig <- fig %>% add_markers()
+fig <- fig %>% layout(scene = list(xaxis = list(title = 'Air (CT)'),
+                     yaxis = list(title = 'Floor (CT)'),
+                     zaxis = list(title = 'Worktop  (CT)')),
+                     annotations = list(
+                       x = 1.13,
+                       y = 1.05,
+                       text = 'Sink (CT)',
+                       xref = 'paper',
+                       yref = 'paper',
+                       showarrow = FALSE
+                       ))
+
+fig <- add_trace(p = fig,
+                       z = samples_lm_surface,
+                       x = axis_x,
+                       y = axis_y,
+                       type = "surface")
+
+fig
+```
+```{r f1311bz,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="3D Scatter plot for of all 4 sample types on ward F6 (Intervention) (x=Air, y=Floor, z=Worktop, with sink CT represented as colour scale depicted in red hues. Linear regression plane overlaid on blue to yellow colour scale"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_11b_1.png")
+```
+## **Missing data**
+
+Many of the swab samples and air samples detect a target which is not replicated in other samples taken on that day. At present whilst this data is shown in the scater plots above using the imputed CT of 30 to indicate an NA value it fails to give us any detail of the relationship between the missing and non-missing data.
+
+Using a `marginplot()` from the `VIM` package will however allow us to plot this missing data in a more informative manner ([\@ref(fig:f1312z)]{color="blue"}). Scatter matrices are also plotted for G6 (Figure [\@ref(fig:f1313z)]{color="blue"}) and F6 (Figure [\@ref(fig:f1314z)]{color="blue"}) detailin the location of missing values as well as the change in CT of detected values where missing data exists for contemporaneous samples (see upper panel scatter margin plots).
+
+```{r}
+library(VIM)
+
+#list the rows that do not have missing values
+G6F6_air_Wktop_sink_floor_detected[complete.cases(G6F6_air_Wktop_sink_floor_detected),]
+G6F6_air_Wktop_sink_floor_detected[!complete.cases(G6F6_air_Wktop_sink_floor_detected),]
+```
+
+```{r f1312, eval = rungraphs, fig.height=10, fig.width=5, fig.cap = "Missing-values patterns summarised by the md.pattern() function. Each row represents a pattern of missing (red) and non-missing (blue) data"}
+data(G6F6_air_Wktop_sink_floor_detected, package="VIM")
+aggr(G6F6_air_Wktop_sink_floor_detected, prop=FALSE, numbers=TRUE)
+```
+```{r f1312z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Missing-values patterns summarised by the md.pattern() function. Each row represents a pattern of missing (red) and non-missing (blue) data"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_12_1.png")
+```
+```{r f1313, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values of all targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+scattmatrixMiss(G6_air_Wktop_sink_floor_detected[,c(5:8)])
+marginmatrix(G6_air_Wktop_sink_floor_detected[,c(5:8)])
+```
+
+```{r f1313z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values of all targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_13_1.png")
+```
+
+```{r f1314, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values of all targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+scattmatrixMiss(F6_air_Wktop_sink_floor_detected[,c(5:8)])
+marginmatrix(F6_air_Wktop_sink_floor_detected[,c(5:8)])
+```
+
+```{r f1314z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values of all targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_14_1.png")
+```
+
+```{r f1315, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values for AMR targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+G6_air_Wktop_sink_floor_detected_AMR <- G6_air_Wktop_sink_floor_detected[G6_air_Wktop_sink_floor_detected$Type=="AMR",]
+marginmatrix(G6_air_Wktop_sink_floor_detected_AMR[,c(5:8)])
+scattmatrixMiss(G6_air_Wktop_sink_floor_detected_AMR[,c(5:8)])
+```
+```{r f1315z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for AMR targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_15_1.png")
+```
+
+```{r f1321, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values for AMR targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+F6_air_Wktop_sink_floor_detected_AMR <- F6_air_Wktop_sink_floor_detected[F6_air_Wktop_sink_floor_detected$Type=="AMR",]
+marginmatrix(F6_air_Wktop_sink_floor_detected_AMR[,c(5:8)])
+scattmatrixMiss(F6_air_Wktop_sink_floor_detected_AMR[,c(5:8)])
+```
+```{r f1321z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for AMR targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_21_1.png")
+```
+```{r f1316, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values for microbial (non-AMR) targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+G6_air_Wktop_sink_floor_detected_notAMR <- G6_air_Wktop_sink_floor_detected[G6_air_Wktop_sink_floor_detected$Type!="AMR",]
+marginmatrix(G6_air_Wktop_sink_floor_detected_notAMR[,c(5:8)])
+scattmatrixMiss(G6_air_Wktop_sink_floor_detected_notAMR[,c(5:8)])
+```
+```{r f1316z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for microbial (non-AMR) targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_16_1.png")
+```
+```{r f1322, eval = rungraphs, fig.height=10, fig.width=10, fig.cap ="Scatter plot matrix of CT values for microbial (non-AMR) targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+F6_air_Wktop_sink_floor_detected_notAMR <- F6_air_Wktop_sink_floor_detected[F6_air_Wktop_sink_floor_detected$Type!="AMR",]
+marginmatrix(F6_air_Wktop_sink_floor_detected_notAMR[,c(5:8)])
+scattmatrixMiss(F6_air_Wktop_sink_floor_detected_notAMR[,c(5:8)])
+```
+
+
+```{r f1322z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for microbial (non-AMR) targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_22_1.png")
+```
+
+
+```{r f1317, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values for gram-positive bacterial targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+G6_air_Wktop_sink_floor_detected_GPC <- G6_air_Wktop_sink_floor_detected[G6_air_Wktop_sink_floor_detected$Type=="GPC",]
+marginmatrix(G6_air_Wktop_sink_floor_detected_GPC[,c(5:8)])
+scattmatrixMiss(G6_air_Wktop_sink_floor_detected_GPC[,c(5:8)])
+```
+```{r f1317z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for gram-positive bacterial targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_17_1.png")
+```
+```{r f1323, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values for gram-positive bacterial targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+F6_air_Wktop_sink_floor_detected_GPC <- F6_air_Wktop_sink_floor_detected[F6_air_Wktop_sink_floor_detected$Type=="GPC",]
+marginmatrix(F6_air_Wktop_sink_floor_detected_GPC[,c(5:8)])
+scattmatrixMiss(F6_air_Wktop_sink_floor_detected_GPC[,c(5:8)])
+```
+```{r f1323z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for gram-positive bacterial targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_23_1.png")
+```
+
+```{r f1318, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values for gram-negative bacterial targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+G6_air_Wktop_sink_floor_detected_GNB <- G6_air_Wktop_sink_floor_detected[G6_air_Wktop_sink_floor_detected$Type=="GNB",]
+marginmatrix(G6_air_Wktop_sink_floor_detected_GNB[,c(5:8)])
+scattmatrixMiss(G6_air_Wktop_sink_floor_detected_GNB[,c(5:8)])
+```
+```{r f1318z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for gram-negative bacterial targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_18_1.png")
+```
+
+
+```{r f1324, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values for gram-negative bacterial targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+F6_air_Wktop_sink_floor_detected_GNB <- F6_air_Wktop_sink_floor_detected[F6_air_Wktop_sink_floor_detected$Type=="GNB",]
+marginmatrix(F6_air_Wktop_sink_floor_detected_GNB[,c(5:8)])
+scattmatrixMiss(F6_air_Wktop_sink_floor_detected_GNB[,c(5:8)])
+```
+```{r f1324z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for gram-negative bacterial targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_24_1.png")
+```
+
+```{r f1319, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values for fungal targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+G6_air_Wktop_sink_floor_detected_Fungi <- G6_air_Wktop_sink_floor_detected[G6_air_Wktop_sink_floor_detected$Type=="Fungi",]
+marginmatrix(G6_air_Wktop_sink_floor_detected_Fungi[,c(5:8)])
+scattmatrixMiss(G6_air_Wktop_sink_floor_detected_Fungi[,c(5:8)])
+```
+```{r f1319z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for fungal targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_19_1.png")
+```
+
+
+
+```{r f1325, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values for fungal targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+F6_air_Wktop_sink_floor_detected_Fungi <- F6_air_Wktop_sink_floor_detected[F6_air_Wktop_sink_floor_detected$Type=="Fungi",]
+marginmatrix(F6_air_Wktop_sink_floor_detected_Fungi[,c(5:8)])
+scattmatrixMiss(F6_air_Wktop_sink_floor_detected_Fungi[,c(5:7)])
+scattmatrixMiss(F6_air_Wktop_sink_floor_detected_Fungi[,c(6:8)])
+scattmatrixMiss(F6_air_Wktop_sink_floor_detected_Fungi[,c(5,7:8)])
+```
+```{r f1325z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for fungal targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_25_1.png")
+```
+
+```{r  f1320, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values for viral targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+G6_air_Wktop_sink_floor_detected_Virus <- G6_air_Wktop_sink_floor_detected[G6_air_Wktop_sink_floor_detected$Type=="Virus",]
+marginmatrix(G6_air_Wktop_sink_floor_detected_Virus[,c(5:8)])
+scattmatrixMiss(G6_air_Wktop_sink_floor_detected_Virus[,c(5:8)])
+```
+```{r f1320z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for viral targets seen in the Air, Worktop, Floor, and Sink samples from ward G6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_20_1.png")
+```
+
+```{r f1326, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Scatter plot matrix of CT values for viral targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+F6_air_Wktop_sink_floor_detected_Virus <- F6_air_Wktop_sink_floor_detected[F6_air_Wktop_sink_floor_detected$Type=="Virus",]
+marginmatrix(F6_air_Wktop_sink_floor_detected_Virus[,c(5:8)])
+scattmatrixMiss(F6_air_Wktop_sink_floor_detected_Virus[,c(5:8)])
+```
+```{r f1326z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Scatter plot matrix of CT values for viral targets seen in the Air, Worktop, Floor, and Sink samples from ward F6 with upper panels, box plots depicting missing data (red) and non-missing data (blue) in the margins and lower panels depicting the location of the missing data for the other 2 variables in red"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f13_26_1.png")
+```
+```{r}
+A2 <- iaq2aBHmatched[iaq2aBHmatched$sensLocHEPA=="BH_G+",]
+B2 <- iaq2aBHmatched[iaq2aBHmatched$sensLocHEPA=="BH_F-",]
+DescripStats(B2,A2,"A table of summary statistics comparing a non-HEPA ward to a HEPA ward bay H between 9th February to 16th February 2022 (17 percent of the data was able to be matched) . P values calculated usng Wilcoxon rank sum test")
+```
+
+```{r}
+iaqHr <- timeAverage(
+  iaq2aBHmatched,
+  avg.time = "hour")
+iaqHr <- merge(windOaq, iaqHr, by = "date")
+
+iaqHr$spike2 <- if_else((iaqHr$pm1 >= 100), 
+                      ">100", 
+                      "<100", 
+                      missing = NULL)
+iaqHr$spike2 <- as.factor(iaqHr$spike2)
+
+```
+
+```{r}
+timeVariation(
+  iaqHrNoHEPA[iaqHrNoHEPA$spike2 == "<100",],
+  pollutant = c("pm1","pm10Ext","ws"),
+  cols = c("blue","orange","red"),
+  local.tz = "Europe/London",
+  normalise = TRUE,
+  xlab = "weekday",
+  plot = TRUE)
+```

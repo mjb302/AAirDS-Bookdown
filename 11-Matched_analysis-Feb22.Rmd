@@ -1,0 +1,784 @@
+## **Method and Rationale**
+
+## **`HEPA` vs `No HEPA`**
+
+Data from the bay D and H sensors from both ward A and B were compared for the first matched period as they both had data from each ward allowing a comparison between `HEPA` and `No HEPA` states from the same locations. 
+
+Unfortunately no two co-located sensors were in place for the second matched period and of those that were closely located none recorded for the same time periods.
+
+## **Missing data 1**
+
+Summary tables of missing data for each these sensors are recorded in tables [\@ref(tab:tmatched02)]{color="blue"} & [\@ref(tab:tmatched04)]{color="blue"} .
+
+There was no missing data from the Bay D nor H sensors from ward B for the first matched period `iaq2a` and as already discussed no two sensors recorded for the same time periods in the second matched period leaving only 2 sensors with missing data.
+
+```{r eval=FALSE}
+
+DescripStats <- function(A,B,caption){
+
+B.stats <- describeBy(B[,4:11])  # Descriptive stats for HEPA
+B.stats <- round(B.stats,4)
+A.stats <- describeBy(A[,4:11])  # Descriptive stats for no HEPA
+A.stats <- round(A.stats,4)
+AB.wilresults <- sapply(c(4:11), function(i) {wilcox.test(A[,i],B[,i])}) # Independent MW-test
+AB.wilres <- as.data.frame(t(AB.wilresults[3,])) # This selects just the p-values.
+AB.pvalwil <- round(as.numeric(t(AB.wilres)),3)
+AB.pvalwil1 <- if_else(AB.pvalwil<0.001, "<0.001","ns")
+
+# Compile descriptive statistics results
+AB.stats <- cbind.data.frame(
+  A.stats[,2:4],
+  B.stats[,2:4])
+AB.stats <- round(AB.stats,2)
+AB.stats.res <- cbind.data.frame(
+  AB.stats,
+  AB.pvalwil1)
+colnames(AB.stats.res) <- c(
+  "No HEPA (n)",
+  "No HEPA mean",
+  "No HEPA SD",
+  "HEPA(n)",
+  "HEPA mean",
+  "HEPA SD",
+  "p")
+knitr::kable(
+  AB.stats.res,
+  format = "latex",
+  booktabs = TRUE,
+  caption = paste(caption)
+)
+}
+
+MissingData <- function(A,caption){
+
+A.sensdat <- A # Combined vertically
+
+# Compute location of missing data
+A.missLoc <- diff(as.numeric(A.sensdat$date))
+A.q <- which(A.missLoc > 3600) # These are the numerical loactions
+A.gapStart <- A.sensdat$date[A.q] # These are date stamps for the start of the gap (missing data)
+A.gapStop <- A.sensdat$date[A.q+1]  # These are date stamps for the stop of the gap (missing data)
+A.gapSize <- as.numeric(A.gapStop) - as.numeric(A.gapStart)
+A.gapSize <- (A.gapSize/3600) # These are the size of the gaps in hours
+A.gapSize <- round(A.gapSize,1)
+A.nmiss <- A.gapSize*120
+A.w <- floor(A.nmiss) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+A.gapLoc <- A.q
+A.gapWidth <- A.w
+A.gapStart <- as.character(A.gapStart, "%d-%m-%Y %H:%M:%S")
+A.gapStop <- as.character(A.gapStop, "%d-%m-%Y %H:%M:%S")
+A.missResults <- cbind.data.frame(A.gapStart, A.gapStop, A.gapSize, A.gapWidth)
+A.missResults <- adorn_totals(A.missResults, where = "row")
+
+knitr::kable(
+  A.missResults,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = paste(caption)
+  ) %>%
+  kable_styling(latex_options = "hold_position")
+}
+
+corrIAQOAQ <- function(x){
+  
+  oaq1 <- importAQE(
+    site = "CAM1",
+    year = 2022,
+    data_type = "hourly",
+    pollutant = "all",
+    meta = FALSE,
+    ratified = FALSE,
+    to_narrow = FALSE,
+    progress = TRUE
+    )
+  
+  oaq2 <- importAURN(
+    site = "CAM",
+    year = "2022",
+    data_type = "hourly",
+    pollutant = "all",
+    hc = FALSE,
+    meta = FALSE,
+    ratified = FALSE,
+    to_narrow = FALSE,
+    verbose = FALSE,
+    progress = TRUE
+    )
+  
+  oaq1$date <- as.POSIXct(oaq1$date, format = "%Y-%m-%d %H:%M:%S", tz = "GMT")
+  oaq2$date <- as.POSIXct(oaq1$date, format = "%Y-%m-%d %H:%M:%S", tz = "GMT")
+  
+  x$date <- round_date(
+    x$date,
+    unit = "hour")
+  
+  x1 <- x[match(unique(x$date), x$date),]
+
+#Now we need to select only the dates and times which are present in the iaq2cBH data
+
+  x2 <- left_join(x1,oaq1,by = "date")
+  x3 <- left_join(x2,oaq2,by = "date")
+#select only vectors for correlation analysis
+
+corrgram(x3[,c(4:11,13,14,16,17,21,23,27,32:35,38:43)], order=FALSE, lower.panel = panel.pie, upper.panel = panel.pts, text.panel=panel.txt)
+}
+
+
+#iaq <- read.csv(
+    #file = "/Users/mattbutler/Desktop/COVID-19/allPy.csv",
+    #header = TRUE,
+   # sep = ",")
+
+names(iaq)[1] <- "sensID"
+
+names(iaq)[2] <- "dateTime"
+
+iaq$date <- as.POSIXct(
+    iaq$dateTime, 
+    format = "%Y-%m-%d %H:%M:%S", 
+    tz = "")
+
+iaq$dateTime <- as.Date(
+    iaq$dateTime, 
+    "%Y-%m-%d %H:%M:%S")
+
+iaq <- selectByDate(
+  iaq,
+  start = "05/02/2022")
+
+iaq$HEPA <- as.factor(iaq$HEPA)
+
+iaq$day <- format(as.Date(iaq$dateTime), "%A")
+
+iaq$spike2 <- if_else(
+    (iaq$pm1 >= 100),
+    ">100",
+    "<100",
+    missing = NULL)
+iaq$spike2 <- as.factor(iaq$spike2)
+
+iaq$ward <- if_else(
+    (iaq$sensID == "S11217020" | 
+       iaq$sensID == "S11213560" | 
+       iaq$sensID == "S11217088" | 
+       iaq$sensID == "S11217492" | 
+       iaq$sensID == "S11217080"),
+    "F6",
+    "G6",
+    missing = NULL)
+iaq$ward <- as.factor(iaq$ward)
+
+iaq$wardLoc <- if_else(
+    (iaq$sensID == "S11217020" | 
+       iaq$sensID == "S11217080" | 
+       iaq$sensID == "S11213884" | 
+       iaq$sensID == "S11217064"),
+    "Corridor",
+    "Bay",
+    missing = NULL)
+iaq$wardLoc <- as.factor(iaq$wardLoc)
+
+iaq_1 <- iaq[iaq$HEPA=="HEPA",]
+iaq_1$wardLocHEPA <- if_else(
+  iaq_1$wardLoc == "Bay",
+    "BayHEPA",
+    "CorHEPA",
+    missing = NULL)
+iaq_2 <- iaq[iaq$HEPA=="No HEPA",]
+iaq_2$wardLocHEPA <- if_else(
+  iaq_2$wardLoc == "Bay",
+    "BayNoHEPA",
+    "CorNoHEPA",
+    missing = NULL)
+iaq <- rbind(iaq_1, iaq_2)
+iaq$wardLocHEPA <- as.factor(iaq$wardLocHEPA)
+rm(iaq_1)
+rm(iaq_2)
+
+iaq$sensLoc <- NA
+iaq[iaq$sensID == "S11213884", "sensLoc"] <- "G6CorCD"
+iaq[iaq$sensID == "S11213832", "sensLoc"] <- "G6BayC2"
+iaq[iaq$sensID == "S11217068", "sensLoc"] <- "G6BayD5"
+iaq[iaq$sensID == "S11213540", "sensLoc"] <- "G6BayG1"
+iaq[iaq$sensID == "S11217064", "sensLoc"] <- "G6CorGH"
+iaq[iaq$sensID == "S11213340", "sensLoc"] <- "G6BayH5"
+iaq[iaq$sensID == "S11217080", "sensLoc"] <- "F6CorCD"
+iaq[iaq$sensID == "S11217492", "sensLoc"] <- "F6BayD5"
+iaq[iaq$sensID == "S11217088", "sensLoc"] <- "F6BayG4"
+iaq[iaq$sensID == "S11213560", "sensLoc"] <- "F6BayH4"
+iaq[iaq$sensID == "S11217020", "sensLoc"] <- "F6CorGH"
+iaq[iaq$sensID == "S11213572", "sensLoc"] <- "F6BayC2"
+iaq$sensLoc <- as.factor(iaq$sensLoc)
+
+iaq$sensLocHEPA <- NA
+iaq[iaq$sensID == "S11213884" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "CC_G+"
+iaq[iaq$sensID == "S11213832" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BC_G+"
+iaq[iaq$sensID == "S11217068" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BD_G+"
+iaq[iaq$sensID == "S11213540" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BG_G+"
+iaq[iaq$sensID == "S11217064" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "CG_G+"
+iaq[iaq$sensID == "S11213340" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BH_G+"
+iaq[iaq$sensID == "S11217080" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "CC_F+"
+iaq[iaq$sensID == "S11217492" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BD_F+"
+iaq[iaq$sensID == "S11217088" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BG_F+"
+iaq[iaq$sensID == "S11213560" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BH_F+"
+iaq[iaq$sensID == "S11217020" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "CG_F+"
+iaq[iaq$sensID == "S11213572" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BC_F+"
+iaq[iaq$sensID == "S11213884" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "CC_G-"
+iaq[iaq$sensID == "S11213832" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BC_G-"
+iaq[iaq$sensID == "S11217068" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BD_G-"
+iaq[iaq$sensID == "S11213540" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BG_G-"
+iaq[iaq$sensID == "S11217064" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "CG_G-"
+iaq[iaq$sensID == "S11213340" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BH_G-"
+iaq[iaq$sensID == "S11217080" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "CC_F-"
+iaq[iaq$sensID == "S11217492" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BD_F-"
+iaq[iaq$sensID == "S11217088" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BG_F-"
+iaq[iaq$sensID == "S11213560" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BH_F-"
+iaq[iaq$sensID == "S11217020" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "CG_F-"
+iaq[iaq$sensID == "S11213572" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BC_F-" 
+iaq$sensLocHEPA <- as.factor(iaq$sensLocHEPA)
+
+iaq$weekend <- if_else(
+    isWeekday(
+        iaq$date, 
+        wday=1:5), 
+    "Weekday", "Weekend")
+
+iaq$weekend <- as.factor(iaq$weekend)
+
+iaq$time <- hour(iaq$date)
+
+iaq$daytime <- ifelse(
+  iaq$time<=6 | 20<=iaq$time,
+  "Night","Day")
+
+iaq$daytime <- as.factor(iaq$daytime)
+
+iaq$svp1 <- (iaq$temp*7.5)/(iaq$temp+237.29)
+iaq$svp2 <- 10^iaq$svp1
+iaq$svp <- 6.11*iaq$svp2
+
+iaq$vp <- (iaq$hum*iaq$svp)/100
+
+iaq$day <- format(as.Date(iaq$dateTime), "%A")
+iaq$day <- as.factor(iaq$day)
+
+iaq$co2[iaq$co2 <= 0] <- NA # Remove negative CO2 values
+
+iaq$pres[iaq$pres <= 0] <- NA # Remove 18 out of 5 million negative pressure values
+
+iaq <- iaq[iaq$sensID != "S11217104",] #exclude the C6 sensor
+
+iaq$period <- NA
+iaq$HEPAperiod <- NA
+
+iaq2a <- selectByDate(
+  iaq,
+  start = "09/02/2022",
+  end = "24/03/2022")
+
+iaq2a$period[iaq2a$co2>-0.1] <- "matched1"
+iaq2a$period <- as.factor(iaq2a$period)
+
+iaq2a$HEPAperiod <- if_else(
+  iaq2a$HEPA == "HEPA", 
+  "HEPAmatched1", 
+  "NoHEPAmatched1")
+iaq2a$HEPAperiod <- as.factor(iaq2a$HEPAperiod)
+
+iaq2b <- selectByDate(
+  iaq,
+  start = "14/10/2022",
+  end = "30/11/2022")
+
+iaq2b$period[iaq2b$co2>-0.1] <- "matched2"
+iaq2b$period <- as.factor(iaq2b$period)
+
+iaq2b$HEPAperiod <- if_else(
+  iaq2b$HEPA == "HEPA", 
+  "HEPAmatched2", 
+  "NoHEPAmatched2")
+iaq2b$HEPAperiod <- as.factor(iaq2b$HEPAperiod)
+
+iaq2aBH <- iaq2a[iaq2a$sensLocHEPA=="BH_F-" |
+          iaq2a$sensLocHEPA=="BH_G+",]
+
+iaq2aBHHEPA <- iaq2aBH[iaq2aBH$HEPA=="HEPA",]
+iaq2aBHNoHEPA <- iaq2aBH[iaq2aBH$HEPA=="No HEPA",]
+
+iaq2aBHmatched <- iaq2aBH[iaq2aBH$date <= "2022-02-11 21:53:13" |
+                   (iaq2aBH$date >= "2022-02-17 12:35:06" &
+                      iaq2aBH$date <= "2022-02-28 08:03:17") |
+                   (iaq2aBH$date >= "2022-03-18 13:51:39" &
+                      iaq2aBH$date <= "2022-03-24 23:59:59"),]
+
+firstiaq2a <- data.frame(
+  date = c(as.POSIXct("2022-02-09 00:00:01",format = "%Y-%m-%d %H:%M:%S",tz = "GMT")),
+  sensID = c(NA),
+  dateTime = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  pres = c(NA),
+  ser = c(NA),
+  HEPA = c(NA),
+  day = c(NA),
+  spike2 = c(NA),
+  ward = c(NA),
+  wardLoc = c(NA),
+  wardLocHEPA = c(NA),
+  sensLoc = c(NA),
+  sensLocHEPA = c(NA),
+  weekend = c(NA),
+  time = c(NA),
+  daytime = c(NA),
+  svp1 = c(NA),
+  svp2 = c(NA),
+  svp = c(NA),
+  vp = c(NA),
+  period = c(NA),
+  HEPAperiod = c(NA)
+)
+
+lastiaq2a <- data.frame(
+  date = c(as.POSIXct("2022-03-24 23:59:59",format = "%Y-%m-%d %H:%M:%S",tz = "GMT")),
+  sensID = c(NA),
+  dateTime = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  pres = c(NA),
+  ser = c(NA),
+  HEPA = c(NA),
+  day = c(NA),
+  spike2 = c(NA),
+  ward = c(NA),
+  wardLoc = c(NA),
+  wardLocHEPA = c(NA),
+  sensLoc = c(NA),
+  sensLocHEPA = c(NA),
+  weekend = c(NA),
+  time = c(NA),
+  daytime = c(NA),
+  svp1 = c(NA),
+  svp2 = c(NA),
+  svp = c(NA),
+  vp = c(NA),
+  period = c(NA),
+  HEPAperiod = c(NA)
+)
+
+iaq2aBH <- iaq2a[iaq2a$sensLocHEPA=="BH_F-" |
+                   iaq2a$sensLocHEPA=="BH_G+",]
+
+iaq2aBHmatched <- iaq2aBH[iaq2aBH$date <= "2022-02-11 21:53:13" |
+                            (iaq2aBH$date >= "2022-02-17 12:35:06" &
+                               iaq2aBH$date <= "2022-02-28 08:03:17") |
+                            (iaq2aBH$date >= "2022-03-18 13:51:39" &
+                               iaq2aBH$date <= "2022-03-24 23:59:59"),]
+
+iaq2aBD <- iaq2a[iaq2a$sensLocHEPA=="BD_F-" |
+                   iaq2a$sensLocHEPA=="BD_G+",]
+
+iaq2aBDmatched <- iaq2aBD[iaq2aBD$date <= "2022-02-16 12:30:46",]
+iaq2aBDHmatched <- rbind.data.frame(iaq2aBDmatched,iaq2aBHmatched)
+
+iaq2c <- selectByDate(
+  iaq,
+  start = "26/03/2022",
+  end = "12/10/2022")
+
+firstiaq2c <- data.frame(
+  date = c(as.POSIXct("2022-03-26 00:00:04",format = "%Y-%m-%d %H:%M:%S",tz = "GMT")),
+  sensID = c(NA),
+  dateTime = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  pres = c(NA),
+  ser = c(NA),
+  HEPA = c(NA),
+  day = c(NA),
+  spike2 = c(NA),
+  ward = c(NA),
+  wardLoc = c(NA),
+  wardLocHEPA = c(NA),
+  sensLoc = c(NA),
+  sensLocHEPA = c(NA),
+  weekend = c(NA),
+  time = c(NA),
+  daytime = c(NA),
+  svp1 = c(NA),
+  svp2 = c(NA),
+  svp = c(NA),
+  vp = c(NA),
+  period = c(NA),
+  HEPAperiod = c(NA)
+)
+
+lastiaq2c <- data.frame(
+  date = c(as.POSIXct("2022-10-12 23:59:57",format = "%Y-%m-%d %H:%M:%S",tz = "GMT")),
+  sensID = c(NA),
+  dateTime = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  pres = c(NA),
+  ser = c(NA),
+  HEPA = c(NA),
+  day = c(NA),
+  spike2 = c(NA),
+  ward = c(NA),
+  wardLoc = c(NA),
+  wardLocHEPA = c(NA),
+  sensLoc = c(NA),
+  sensLocHEPA = c(NA),
+  weekend = c(NA),
+  time = c(NA),
+  daytime = c(NA),
+  svp1 = c(NA),
+  svp2 = c(NA),
+  svp = c(NA),
+  vp = c(NA),
+  period = c(NA),
+  HEPAperiod = c(NA)
+)
+
+iaq2cBH <- iaq2c[iaq2c$date <= "2022-04-19 06:53:54" |
+                  (iaq2c$date >= "2022-05-17 03:58:15" & iaq2c$date <= "2022-05-28 17:13:21") |
+                  (iaq2c$date >= "2022-05-29 03:13:25" & iaq2c$date <= "2022-05-31 14:21:48") |
+                  (iaq2c$date >= "2022-06-01 18:56:27" & iaq2c$date <= "2022-06-02 08:02:19") |
+                  (iaq2c$date >= "2022-06-21 18:08:37" & iaq2c$date <= "2022-06-22 20:46:34") |
+                  (iaq2c$date >= "2022-06-22 22:26:55" & iaq2c$date <= "2022-07-31 09:40:34") |
+                  (iaq2c$date >= "2022-07-31 19:40:40" & iaq2c$date <= "2022-08-04 10:51:02") |
+                  (iaq2c$date >= "2022-08-08 07:43:11" & iaq2c$date <= "2022-08-08 11:38:07") |
+                  (iaq2c$date >= "2022-08-11 07:36:05" & iaq2c$date <= "2022-08-15 07:56:08") |
+                  (iaq2c$date >= "2022-08-15 15:37:34" & iaq2c$date <= "2022-08-15 19:48:38") |
+                  (iaq2c$date >= "2022-08-15 21:19:33" & iaq2c$date <= "2022-09-05 05:35:59") |
+                  (iaq2c$date >= "2022-09-05 15:36:03" & iaq2c$date <= "2022-09-07 17:21:23"),]
+
+iaq2cBD <- iaq2c[iaq2c$date <= "2022-04-19 15:56:03" |
+                  (iaq2c$date >= "2022-04-20 01:56:13" & iaq2c$date <= "2022-04-25 11:54:32") |
+                  (iaq2c$date >= "2022-04-28 18:30:36" & iaq2c$date <= "2022-05-14 17:30:12") |
+                  (iaq2c$date >= "2022-05-18 12:39:53" & iaq2c$date <= "2022-06-02 13:06:57") |
+                  (iaq2c$date >= "2022-06-12 12:30:31" & iaq2c$date <= "2022-06-16 15:22:47"),]
+```
+
+```{r tmatched02}
+BH_GHEP <- iaq2a[iaq2a$sensLocHEPA == "BH_G+",] 
+BH_GHEP <- rbind(firstiaq2a,BH_GHEP,lastiaq2a)
+MissingData(BH_GHEP,"Missing data for bay H ward A sensor between 9th February- 24th March 2022")
+```
+
+```{r tmatched04}
+BD_GHEP <- iaq2a[iaq2a$sensLocHEPA == "BD_G+",] 
+BD_GHEP <- rbind(firstiaq2a,BD_GHEP,lastiaq2a)
+MissingData(BD_GHEP,"Missing data for bay D ward A sensor between 9th February- 24th March 2022")
+```
+
+
+From these tables we can see that in the first matched period `iaq2a` the bay H sensor from ward A and the bay D sensor from ward A has some gaps where data was missing.
+
+## **Matched data 1**
+
+We can now use this information to create 2 data sets `iaq2aBDmatched` and `iaq2aBHmatched` that only contain data recorded from the same time periods i.e. gaps are removed from the co-located sensor. 
+
+```{r tiaq2aBDmatchedStats}
+B <- iaq2aBDmatched[iaq2aBDmatched$sensLocHEPA=="BD_G+",]
+A <- iaq2aBDmatched[iaq2aBDmatched$sensLocHEPA=="BD_F-",]
+DescripStats(B,A,"A table of summary statistics comparing a non-HEPA ward to a HEPA ward bay D between 9th February to 16th February 2022 (17 percent of the data was able to be matched) . P values calculated usng Wilcoxon rank sum test")
+```
+```{r eval=FALSE}
+MissingData(A,"Check for missing data for D bay ward A FIRST")
+```
+```{r eval=FALSE}
+MissingData(B,"Check for missing data for D bay ward B FIRST")
+```
+
+```{r tiaq2aBHmatchedStats}
+A2 <- iaq2aBHmatched[iaq2aBHmatched$sensLocHEPA=="BH_G+",]
+B2 <- iaq2aBHmatched[iaq2aBHmatched$sensLocHEPA=="BH_F-",]
+DescripStats(A2,B2,"A table of summary statistics comparing a non-HEPA ward to a HEPA ward bay H between 9th February to 16th February 2022 (17 percent of the data was able to be matched) . P values calculated usng Wilcoxon rank sum test")
+```
+
+```{r eval=FALSE}
+MissingData(A2,"Check for missing data for H bay ward A FIRST")
+```
+```{r eval=FALSE}
+MissingData(B2,"Check for missing data for H bay ward B FIRST")
+```
+## **Analysis 1**
+
+We can then calculate some descriptive statistics for these two data. The measurements are sequential time series data which are not truly dependent so we will predominantly use the Wilcoxon rank sum test as our primary evaluation method for difference. A T-test is however displayed alongside the results in the final column.
+
+Individual Wilcoxon rank sum tests were then performed for all IAQ parameters; PM~1~, PM~2.5~, PM~4~, PM~10~, temperature, humidity, CO~2~ and air pressure.
+
+As can be seen from both tables [\@ref(tab:tiaq2aBDmatchedStats)]{color="blue"} & [\@ref(tab:tiaq2aBHmatchedStats)]{color="blue"} all parameters except pressure for the bay d sensor were significantly different. 
+
+We can however see from table that this difference was very small for the bay D sensors (table [\@ref(tab:tiaq2aBDmatchedStats)]{color="blue"}) and coincided with:
+
+1. Historically low readings on both the `HEPA` and `No HEPA` wards seen in February 2022 (Figure [\@ref(fig:fmatched01)]{color="blue"} ) and...
+
+2. Only 7 days worth of data from the bay d sensor on ward B limiting the analysis.
+
+```{r, eval = FALSE, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$, $PM_2.5_$, $PM_4$ and $PM_10_$ concentrations ($\\mu$g per m$^3$) by month for the first matched period for the bay H sensor in the No HEPA state February to March 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations.", cache=TRUE}
+iaqMonth <- timeVariation(
+  iaq[iaq$HEPA=="No HEPA",],
+  pollutant = c("pm1","pm2_5","pm4","pm10"),
+  cols = "cbPalette",
+  normalise = FALSE,
+  xlab = c("hour", "hour", "month", "weekday"),
+  plot = FALSE,
+  )
+plot(iaqMonth, subset="month")
+```
+```{r fmatched01,  echo=FALSE, out.width="100%", fig.cap = "Variation of PM1, PM2.5, PM4 and PM10 concentrations ($\\mu$g per m$^3$) by month for the first matched period for the bay H sensor in the No HEPA state February to March 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched01-1.png")
+```
+## **TimeVariation() bay H 1**
+
+If we instead plotted the larger of the two data sets; `iaq2aBHmatched`; using `timeVariation()` we should be able to appreciate the differences between the `HEPA` and `No HEPA` wards (Figure [\@ref(fig:fmatched02)]{color="blue"}) .
+
+```{r, eval = FALSE, fig.height=10, fig.width=10, fig.cap = "Variation of PM2.5 concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month for ward A (blue) in the HEPA state and ward B (orange) in the No HEPA state - February to March 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+  iaq2aBHmatched,
+  pollutant = "pm2_5",
+  cols = c("orange","blue"),
+  group= "sensLocHEPA",
+  normalise = FALSE,
+  xlab = c("hour", "hour", "month", "weekday"),
+  plot = TRUE,
+  )
+```
+```{r fmatched02,  echo=FALSE, out.width="100%", fig.cap = "Variation of $PM_2.5$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month for ward A (blue) in the HEPA state and ward B (orange) in the No HEPA state - February to March 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched02-1.png")
+```
+Unfortunately for the second matched period `iaq2b` although there are bay sensors from both wards - none recorded for same time period and so will not be analysed as we cannot be sure any differences are not due to temporal trends.
+
+## **Corrgrams 1**
+
+A corrgram is a visual display of a correlation matrix, which shows the correlation coefficients between pairs of variables. 
+
+In a corrgram, the correlation coefficients are typically represented by color-coded squares or circles, where the color indicates the strength and direction of the correlation.
+
+Here we can use them to rapidly assess for correlations in the `HEPA` and `No HEPA` states for `iaq2aBHmatched` (Figures [\@ref(fig:fmatched03)]{color="blue"} & [\@ref(fig:fmatched04)]{color="blue"} .
+
+```{r eval=FALSE}
+iaq2aBHmatchedHEPA <- iaq2aBHmatched[iaq2aBHmatched$sensLocHEPA=="BH_G+",]
+corrgram(iaq2aBHmatchedHEPA[,4:11], order=FALSE, lower.panel = panel.pie, upper.panel = panel.pts)
+```
+```{r eval=FALSE}
+iaq2aBHmatchedNoHEPA <- iaq2aBHmatched[iaq2aBHmatched$sensLocHEPA=="BH_F-",]
+corrgram(iaq2aBHmatchedNoHEPA[,4:11], order=FALSE, lower.panel = panel.pie, upper.panel = panel.pts)
+```
+```{r fmatched03,  echo=FALSE, eval=TRUE, out.width="100%", fig.cap = "Corrgram of observed IAQ parameters for the first fully matched period (iaq2aBHmatched) from bay H sensors in HEPA state from ward A: Pie correlations and scatter plots"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched03-1.png")
+```
+```{r fmatched04,  echo=FALSE, eval=TRUE, out.width="100%", fig.cap = "Corrgram of observed IAQ parameters for the first fully matched period (iaq2aBHmatched) from bay H sensors in No HEPA state: Pie correlations and scatter plots"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched04-1.png")
+```
+```{r fmatched04a,  echo=FALSE, eval=TRUE, out.width="100%", fig.cap = "Corrgram of observed IAQ parameters for the first fully matched period (iaq2aBHmatched) from bay H sensors; HEPA ward A (upper panel;blue) vs No HEPA ward B (lower panel;orange): Scatter plots"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched03to4-1.png")
+```
+```{r fmatched04b,  echo=FALSE, eval=TRUE, out.width="100%", fig.cap = "Corrgram of observed IAQ parameters for the first fully matched period (iaq2aBHmatched) from bay H sensors; HEPA ward A (upper panel;blue) vs No HEPA ward B (lower panel;orange): Pie correlations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched03to4-2.png")
+```
+
+## **`HEPA` vs `HEPA`**
+
+Now that we have explored the first matched period one question that arises is that are the differences in the `HEPA` and `No HEPA` wards (A & B) related, not to the presence of air cleaning HEPA units, but the underlying differences in the wards themselves.
+
+We will then examine the larger middle time-period (`iaq2c`) between 25^th^ March to 12^th^ October 2022. 
+
+Firstly we will again fully match the data sets by only comparing time-periods where co-located sensors are recording; the sensors that have matched periods originate again in D bay and H bay. 
+
+## **Missing Data 2**
+
+Tables \@ref(tab:tmatched07){color="blue"}, \@ref(tab:tmatched08){color="blue"}, \@ref(tab:tmatched09){color="blue"} & \@ref(tab:tmatched10){color="blue"} show the missing data for these sensors.
+
+## **Matched data 2**
+
+We will then select only data for which both sensors were active and recording creating two new data frames `iaq2cBH` and `iaq2cBD` 
+
+## **Analysis 2**
+
+Similar to the previous analysis we will again calculate descriptive statistics for these two data frames. Summary tables of descriptive statistics for each these sensors are recorded in tables [\@ref(tab:tmatched11)]{color="blue"} & [\@ref(tab:tmatched12)]{color="blue"} .
+
+```{r tmatched07}
+BD_GHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "BD_G+",] # Sensor in Bay D on F6 in the HEPA state*
+BD_GHEPA2 <- rbind(firstiaq2c,BD_GHEPA2,lastiaq2c)
+MissingData(BD_GHEPA2,"Missing data for bay D ward A sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state).")
+```
+
+```{r tmatched08}
+BD_FHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "BD_F+",] # Sensor in Bay D on F6 in the HEPA state*
+BD_FHEPA2 <- rbind(firstiaq2c,BD_FHEPA2,lastiaq2c)
+MissingData(BD_FHEPA2,"Missing data for bay D ward B sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state).")
+```
+
+```{r tmatched09}
+BH_GHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "BH_G+",] # Sensor in Bay D on F6 in the HEPA state*
+BH_GHEPA2 <- rbind(firstiaq2c,BH_GHEPA2,lastiaq2c)
+MissingData(BH_GHEPA2,"Missing data for bay H ward A sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state).")
+```
+
+```{r tmatched10}
+BH_FHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "BH_F+",] # Sensor in Bay D on F6 in the HEPA state*
+BH_FHEPA2 <- rbind(firstiaq2c,BH_FHEPA2,lastiaq2c)
+MissingData(BH_FHEPA2,"Missing data for bay H ward B sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state).")
+```
+
+```{r tmatched11}
+G6BH <- iaq2cBH[iaq2cBH$sensLocHEPA=="BH_G+",]  # HEPA filters bay H G6 - fully matched
+F6BH <- iaq2cBH[iaq2cBH$sensLocHEPA=="BH_F+",] # HEPA filters bay H F6 - fully matched
+DescripStats(G6BH,F6BH,"A table of summary statistics comparing the ward A and B bay H sensors both in the HEPA state for the fully matched period removing all data by date not gathered by both sensors. P values calculated using Wilcoxon rank sum.")
+```
+```{r eval=FALSE}
+G6BH <- rbind(firstiaq2c,G6BH,lastiaq2c)
+MissingData(G6BH,"Check for missing data for H bay ward A MIDDLE")
+```
+```{r eval=FALSE}
+F6BH <- rbind(firstiaq2c,F6BH,lastiaq2c)
+MissingData(F6BH,"Check for missing data for H bay ward B MIDDLE")
+```
+
+```{r tmatched12}
+G6BD <- iaq2cBD[iaq2cBD$sensLocHEPA=="BD_G+",]  # HEPA filters bay D G6 - fully matched
+F6BD <- iaq2cBD[iaq2cBD$sensLocHEPA=="BD_F+",] # HEPA filters bay D F6 - fully matched
+DescripStats(G6BD,F6BD,"A table of summary statistics comparing the ward A and B bay D sensors both in the HEPA state for the fully matched period removing all data by date not gathered by both sensors. P values calculated using Wilcoxon rank sum.")
+```
+```{r eval=FALSE}
+G6BD <- rbind(firstiaq2c,G6BD,lastiaq2c)
+MissingData(G6BD,"Check for missing data for D bay ward A MIDDLE")
+```
+```{r eval=FALSE}
+F6BD <- rbind(firstiaq2c,F6BD,lastiaq2c)
+MissingData(F6BD,"Check for missing data for D bay ward B MIDDLE")
+```
+
+## **TimeVariation() bay D & H 2**
+
+What does this look like if we plotted again the larger of these data from the Bay H sensors this time with both wards in the `HEPA` state. Figure [\@ref(fig:fmatched05)]{color="blue"} shows that ward A (blue) has consistently; albeit minor; raised PM~2.5~ levels when compared with ward B (green) suggesting that the higher powered ACUs installed on ward B were having an enhanced cleaning effect during this time. 
+
+```{r, eval = FALSE, fig.height=10, fig.width=10, fig.cap = "Variation of particulate concentrations ($\\mu$g per m$^3$) by month for the Bay H sensors comparing ward A (blue) to ward B (green) both in the HEPA state. February to March 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations.", cache=TRUE}
+timeVariation(
+  iaq2cBH[iaq2cBH$sensLocHEPA=="BH_G+" |
+            iaq2cBH$sensLocHEPA=="BH_F+",],
+  pollutant = "pm2_5",
+  cols = c("darkgreen","blue"),
+  group= "sensLocHEPA",
+  normalise = FALSE,
+  xlab = c("hour", "hour", "month", "weekday"),
+  plot = TRUE,
+  )
+```
+```{r fmatched05,  echo=FALSE, out.width="100%", fig.cap = "Variation of $PM_2.5$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month for ward A (blue) and ward B (green) both with HEPA - March to October 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched05-1.png")
+```
+
+Interestingly for CO~2~ there are also significant differrences between the wards when both are in the HEPA state; Bay D is shown in Figure [\@ref(fig:fmatched05a)]{color="blue"} and Bay H is shown in Figure [\@ref(fig:fmatched05b)]{color="blue"}.
+
+```{r, eval = FALSE, fig.height=10, fig.width=10, fig.cap = "Variation of carbon dioxide concentration (ppm) by month for the Bay D sensors comparing ward A (blue) to ward B (green) both in the HEPA state. March to September 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations.", cache=TRUE}
+timeVariation(
+  iaq2cBD[iaq2cBD$sensLocHEPA=="BD_G+" |
+            iaq2cBD$sensLocHEPA=="BD_F+",],
+  pollutant = "co2",
+  cols = c("darkgreen","blue"),
+  group= "sensLocHEPA",
+  normalise = FALSE,
+  xlab = c("hour", "hour", "month", "weekday"),
+  plot = TRUE,
+  )
+```
+
+```{r fmatched05a,  echo=FALSE, out.width="100%", fig.cap = "Variation of carbon dioxide concentration (ppm) by month for the Bay D sensors comparing ward A (blue) to ward B (green) both in the HEPA state. March to September 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched05a-1.png")
+```
+
+```{r, eval = FALSE, fig.height=10, fig.width=10, fig.cap = "Variation of carbon dioxide concentration (ppm) by month for the Bay H sensors comparing ward A (blue) to ward B (green) both in the HEPA state. March to September 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations.", cache=TRUE}
+timeVariation(
+  iaq2cBH[iaq2cBH$sensLocHEPA=="BH_G+" |
+            iaq2cBH$sensLocHEPA=="BH_F+",],
+  pollutant = "co2",
+  cols = c("darkgreen","blue"),
+  group= "sensLocHEPA",
+  normalise = FALSE,
+  xlab = c("hour", "hour", "month", "weekday"),
+  plot = TRUE,
+  )
+```
+
+```{r fmatched05b,  echo=FALSE, out.width="100%", fig.cap = "Variation of carbon dioxide concentration (ppm) by month for the Bay H sensors comparing ward A (blue) to ward B (green) both in the HEPA state. March to September 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched05b-1.png")
+```
+## **Corrgrams 2**
+
+Again we can use corrgrams to rapidly assess for correlations in the `HEPA` ward A and the `HEPA` ward B states for `iaq2cBH` (Figures [\@ref(fig:fmatched06)]{color="blue"} & [\@ref(fig:fmatched07)]{color="blue"} .
+
+```{r eval=FALSE}
+iaq2cBHHEPAG <- iaq2cBH[iaq2cBH$sensLocHEPA=="BH_G+",]
+set.seed(234)
+iaq2cBHHEPAGsample <- sample_frac(iaq2cBHHEPAG,.1)
+corrgram(iaq2cBHHEPAGsample[,4:11], order=FALSE, lower.panel = panel.pie, upper.panel = panel.pts, text.panel=panel.txt)
+```
+```{r eval=FALSE}
+iaq2cBHHEPAF <- iaq2cBH[iaq2cBH$sensLocHEPA=="BH_F+",]
+set.seed(234)
+iaq2cBHHEPAFsample <- sample_frac(iaq2cBHHEPAF,.1)
+corrgram(iaq2cBHHEPAFsample[,4:11], order=FALSE, lower.panel = panel.pie, upper.panel = panel.pts, text.panel=panel.txt)
+```
+
+```{r fmatched06,  echo=FALSE, out.width="100%", fig.cap = "Corrgram of observed IAQ parameters for the second fully matched period (iaq2cBH) from bay H ward A in the HEPA state: Pie correlations and scatter plots"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched06-1.png")
+```
+```{r fmatched07,  echo=FALSE, out.width="100%", fig.cap = "Corrgram of observed IAQ parameters for the second fully matched period (iaq2cBH) from bay bay H ward B in the HEPA state: Pie correlations and scatter plots"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched07-1.png")
+```
+```{r fmatched07a,  echo=FALSE, eval=TRUE, out.width="100%", fig.cap = "Corrgram of observed IAQ parameters for the second fully matched period (iaq2cBH) from bay H sensors; HEPA ward A (upper panel;blue) vs HEPA ward B (lower panel;orange): Scatter plots"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched06to7-1.png")
+```
+```{r fmatched07b,  echo=FALSE, eval=TRUE, out.width="100%", fig.cap = "CCorrgram of observed IAQ parameters for the second fully matched period (iaq2cBH) from bay H sensors; HEPA ward A (upper panel;blue) vs HEPA ward B (lower panel;orange): Pie correlations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched06to7-2.png")
+```
+We can see some linear correlations from the scatter plots and unsurprisingly the particulates are the highest correlated. Interestingly some positive correlations with particulated in the No HEPA state switch to negative or neutral (e.g. CO~2~) in the HEPA state.
+
+## Linking external parameters
+
+Conceivably external air quality will affect indoor air quality parameters so prior to any factor analysis we will try and link the external data to the internal.
+
+```{r eval=FALSE}
+iaq2aBHmatchedNoHEPA <- iaq2aBHmatched[iaq2aBHmatched$sensLocHEPA=="BH_F-",]
+corrIAQOAQ(iaq2aBHmatchedNoHEPA[,c()])
+```
+
+```{r eval=FALSE}
+iaq2cBHHEPAF <- iaq2cBH[iaq2cBH$sensLocHEPA=="BH_F+",]
+corrIAQOAQ(iaq2cBHHEPAF)
+```
+
+```{r fmatched08a,  echo=FALSE, out.width="100%", fig.cap = "Corrgram of observed IAQ and OAQ parameters for the first fully matched period (iaq2aBH) from bay H ward B in the No HEPA state: Pie correlations and scatter plots"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched08a-1.png")
+```
+```{r fmatched08,  echo=FALSE, out.width="100%", fig.cap = "Corrgram of observed IAQ and OAQ parameters for the second fully matched period (iaq2cBH) from bay H ward B in the HEPA state: Pie correlations and scatter plots"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fmatched08-1.png")
+```
+
+

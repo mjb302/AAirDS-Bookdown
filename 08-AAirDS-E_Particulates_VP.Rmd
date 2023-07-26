@@ -1,0 +1,72 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+# **PM~1~ and VP**
+
+## Scatter plot of **PM~1~ and VP**
+
+Vapour pressure affects aerosol evaporation and sequestration. Lets examine if there is a relationship between VP and **PM~1~**. We would expect drier air to increase evaporation and possibly also particulate levels (Figure [\@ref(fig:f81z)]{color="blue"} ).
+
+```{r f81, eval = rungraphs, fig.height=10, fig.width=10, fig.cap="Scatter plot of  $PM_1$ $\\mu$g per m$^3$ and VP(kPa) observations, trend line as linear model"}
+ggplot(iaq, mapping = aes(x=vp, y=pm1)) +
+  geom_point(color= "cornflowerblue", alpha=.1) +
+  theme_bw() +
+  scale_y_continuous(trans=scales::pseudo_log_trans(base = 10),
+                     breaks = c(0,1,10,100,1000,10000)) +
+  labs(y="$PM_1$ ($\\mu$g per m$^3$)",
+       x="Vapour pressure (kPa)") +
+  geom_smooth(method = lm)
+```
+```{r f81z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Scatter plot of  $PM_1$ $\\mu$g per m3 and VP(kPa) observations, trend line as linear model"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f8.1-1.png")
+```
+
+## **PM~1~** and **VP** in `timeVariance()`
+
+As previously we will examine the `No HEPA` state when looking for correlations with particulates given the degree to which the values are lowered in the `HEPA` state (Figure [\@ref(fig:f82z)]{color="blue"} ).
+
+```{r f82, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of normalised **PM~1~** concentrations for values less than 100 $\\mu$g per m$^3$ and VP by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq[iaq$spike2 == "<100" &
+      iaq$HEPA == "No HEPA",],         #No HEPA state selected
+pollutant = c("pm1","vp"),
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = FALSE,
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f82z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Variation of normalised **PM~1~** concentrations for values less than 100 $\\mu$g per m$^3$ and VP by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f8.2-1.png")
+```
+
+## **PM~1~ and VP** with `geom_point()` by `iaq$weekday` and `iaq$daytime`
+
+Facet scatter plot by weekday and day or night (Figure [\@ref(fig:f83z)]{color="blue"} ).
+
+```{r f83, eval = rungraphs, fig.height=10, fig.width=10, fig.cap="Hex plot of $PM_1$ less than $\\mu$g per m3 and VP(kPa) observations by weekend and daytime; points coloured by `HEPA` state. Trend line as linear model.", cache=TRUE}
+ggplot(data=iaq2aBHrender,
+       mapping = aes(x=pm1,
+                     y=vp,
+                     color = HEPA,
+                     shape = HEPA,
+                     linetype = HEPA)) +
+  geom_hex(bins=30) +
+  scale_fill_gradient(low="lightblue1",high="darkblue",trans="log10") +
+  facet_wrap(daytime~weekend~HEPA, ncol = 2) +
+  scale_x_continuous(trans=scales::pseudo_log_trans(base = 10),
+                     breaks = c(0,1,10,100,1000,10000)) +
+  scale_y_continuous(limits = c(0, 25)) +
+  labs(x="PM_1 (ug/m3)",
+       y="PM_10 (ug/m3)") +
+  geom_smooth(method = lm, se = FALSE, linewidth = 0.5)
+```
+```{r f83z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Scatter plot of $PM_1$ less than $\\mu$g per m3 and VP(kPa) observations by weekend and daytime; points coloured by `HEPA` state. Trend line as linear model."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f8.3-1.png")
+```
+
+
+

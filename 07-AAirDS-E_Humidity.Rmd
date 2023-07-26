@@ -1,0 +1,88 @@
+# **Humidity & Vapour pressure** {#7.1}
+
+## Vapour pressure {#7.2}
+
+As well as monitoring particulates and carbon dioxide, the sensors also recorded air temperature and relative humidity (**RH**; %). However, as **RH** is a relative value which is a function of temperature and vapour pressure (**VP**), in order to perform meaningful analyses it was necessary to compute the **VP** signal from the temperature and **RH** signals. This was done using the equations (1) and (2) below from Alduchov OA, Eskridge RE: **Improved Magnus form approximation of saturation vapor pressure.** Journal of applied meteorology 1996, 35(4):601-609. [link](https://www.osti.gov/servlets/purl/548871).
+
+Saturated vapour pressure (**p~s~**) in kPa and T = air temperature in degrees Celsius: 
+
+$$p_s = 6.11\times\ 10^{{7.5\times\ T}\over{T + 237.3}}$$
+
+Vapour Pressure (**p~v~**) in kPa and $\phi~r~$ = relative humidity (%): 
+$$p_v = {{\phi_r\times\ p_s} \over 100}$$
+
+We will use these two equations to calculate a new variable `iaq$vp`
+first by calculating **p_s_** into variable `iaq$svp`.
+
+```{r eval=FALSE}
+iaq$svp1 <- (iaq$temp*7.5)/(iaq$temp+237.29)
+iaq$svp2 <- 10^iaq$svp1
+iaq$svp <- 6.11*iaq$svp2
+
+iaq$vp <- (iaq$hum*iaq$svp)/100
+```
+
+Here is a summary of the new `iaq$vp` variable:
+
+```{r}
+summary(iaq$vp)
+```
+
+## Vapour pressure in `timeVariance()`
+
+To get an idea of the changes to *VP* over time and through the day and week we will use timeVariance() again to plot these by `HEPA` state (Figure [\@ref(fig:f73z)]{color="blue"} ).
+
+```{r f73, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of **VP** (kPa) by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "vp",
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f73z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Variation of **VP** (kPa) by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7.3-1.png")
+```
+
+## Relative humidity (**RH**) in `timeVariance()`
+
+If we just plotted RH; i.e. not accounting for air temperature we would get (Figure [\@ref(fig:f74z)]{color="blue"} ):
+
+```{r f74, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of **VP** (kPa) by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "hum",
+local.tz = "Europe/London",
+cols = "cbPalette",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f74z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Variation of **VP** (kPa) by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7.4-1.png")
+```
+
+## **VP** & **RH** in `timeVariance()`
+
+If we just plotted RH; i.e. not accounting for air temperature we would get (Figure [\@ref(fig:f75z)]{color="blue"} ):
+
+```{r f75, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of **VP** (kPa) by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq,
+pollutant = c("hum","vp"),
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = TRUE,
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f75z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Variation of **VP** (kPa) by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f7.5-1.png")
+```

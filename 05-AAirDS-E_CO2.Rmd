@@ -1,0 +1,83 @@
+# **CO~2~ Data**{#4}
+
+## Plotting other trends in `iaq` with and without `HEPA` using `timeVariation` (`openair`) in `R`{#24} 
+
+We will start with **CO~2~** given we have published on this previously for a 2 day dataset.
+  
+## **CO~2~** mean values via `timeVariation` (`openair`) in `R`
+
+We have previously published a relationship between **HEPA and CO~2~** that was unexpected [link](https://www.medrxiv.org/content/10.1101/2022.03.25.22272953v1). This previous publication was however based upon a limited subset of data from a natural experiment on the 3rd and 4th August 2021.
+  
+We will now use `timeVariation()` in `R` to plot the diurnal, weekday and monthly **CO~2~** trends for both the `No HEPA` and `HEPA` states - Figure [\@ref(fig:f241z)]{color="blue"}.
+  
+N.B. an erroneous observation from June 2022 of `r colorize ("**-8.847e+17**", "red")` (physically impossible) required removal. We use `iaqMinusCo2 <- iaq[iaq$co2 >= 0,]` in `timeVariance()` to filter out this value.
+  
+```{r f241, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of CO$_2$ concentrations (ppm) by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "co2",
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = FALSE,
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f241z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of CO$_2$ concentrations (ppm) by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f241-1.png")
+```
+  
+## **CO~2~** median values via `timeVariation` in `openair`
+
+Same as in the previous steps we now plot the medians to reduce the effect that outliers have on the data. Following this we will then compute density plots for the same input data in order to make it comparable - Figure [\@ref(fig:f242z)]{color="blue"}.
+  
+```{r f242, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of CO$_2$ concentrations (ppm) by hour of the day, day of the week, and month. The plots show the show the median, 25/75 and 5/95th quantiles", cache=TRUE}
+timeVariation(
+iaq2,
+pollutant = "co2",
+local.tz = "Europe/London",
+normalise = FALSE,
+cols = "cbPalette",
+statistic = "median",
+group = "HEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f242z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Variation of CO$_2$ concentrations (ppm) by hour of the day, day of the week, and month. The plots show the show the median, 25/75 and 5/95th quantiles"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f242-1.png")
+```
+  
+Interestingly the medians show wider variation for the `HEPA` state best appreciated on the top, bottom left, and bottom right plots. To investigate the spread and distribution of the data we will now plot **CO~2~** as density plots.
+ 
+## Density plots for **CO~2~** data{#25}  
+
+## Density plots for all **CO~2~** data
+
+Firstly we will look at the kernal density plots for the entire dataset `iaq`. Note we are using `iaqMinusCo2 <- iaq[iaq$co2 >= 0,]` to remove the single erroneous negative value - Figure [\@ref(fig:f251z)]{color="blue"}.
+
+```{r f251, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Kernal density plot for all CO$_2$ observations, N=5,100,256 [276 $>$ 1200ppm values removed], bandwidth=1e-7, xlim(0, 1200)"}
+ggplot(data=iaq, 
+       mapping = aes(x=co2)) +
+  xlim(0, 1200) +
+  geom_density(bw=.0000001)
+```
+```{r f251z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Kernal density plot for all CO$_2$ observations, N=5,100,256 [276 $>$ 1200ppm values removed], bandwidth=1e-7, xlim(0, 1200)"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f251-1.png")
+```
+  
+## Density plots for `HEPA` vs `No HEPA` of **CO~2~** data
+
+Next we will code a density plot grouped by `HEPA` state. Fistly by creating a `factor()` by `HEPA` or `No HEPA` then forming the plot using `ggplot()` and `geom_density()`- Figure [\@ref(fig:f252z)]{color="blue"}:
+  
+```{r f252, eval = rungraphs, fig.height=10, fig.width=10, fig.cap = "Kernal density plot for CO$_2$ observations by HEPA state, N=5,100,256 [276 $>$ 1200ppm values removed], bandwidth=1e-7, xlim(0, 1200)"}
+ggplot(data=iaq2, mapping = aes(x=co2, colour=HEPA)) +
+xlim(0, 1200) +
+geom_density(bw=.0000001)
+```
+```{r f252z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap="Kernal density plot for CO$_2$ observations by HEPA state, N=5,100,256, (276 values greater than 1200ppm removed), bandwidth=1e-7, xlim(0, 1200)"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f252-1.png")
+```
+  
+The **CO~2~** plots above (mean, median and density) have shown that the timestamps for the data are accurate; there had been some concern of a time shift in the data owing to erroneous time zone or `tz()` allocation in the data set. This had been the case from the AeroSentinelv1 sensors.

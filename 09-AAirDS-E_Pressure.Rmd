@@ -1,0 +1,4 @@
+# **Pressure**{#9.1}
+
+iaqMinusPres <- iaq[iaq$pres <= 0,]
+iaqMinusPres

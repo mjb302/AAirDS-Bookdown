@@ -1,0 +1,1977 @@
+# **Statistical analysis**{#101}
+
+There are several statistical methods that can be used to test for a difference between two sets of time series data. Some of the most commonly used methods include:
+
+1. T-test: A t-test is a statistical test that can be used to determine if there is a significant difference between the means of two sets of time series data. This test assumes that the two sets of data are independent and normally distributed. If the assumptions are met, the t-test can be used to calculate the t-statistic, which represents the difference between the means of the two sets of data in terms of standard errors. A large t-statistic indicates a significant difference between the means of the two sets of data.
+
+2. Mann-Whitney U test: The Mann-Whitney U test is a non-parametric alternative to the t-test that can be used when the assumptions of normality and independence are not met. This test calculates the U-statistic, which represents the difference between the ranks of the two sets of data. A large U-statistic indicates a significant difference between the two sets of data.
+
+3. Wilcoxon signed-rank test: The Wilcoxon signed-rank test is a non-parametric alternative to the t-test that can be used when the two sets of data are dependent (i.e., paired). This test calculates the difference between each pair of observations and ranks the differences. A large rank sum indicates a significant difference between the two sets of data.
+
+4. Analysis of Variance (ANOVA): ANOVA is a statistical method that can be used to test for a difference between two or more sets of time series data. ANOVA decomposes the total variance in the data into between-group variance and within-group variance. A large between-group variance indicates a significant difference between the means of the groups.
+
+In summary, there are several statistical methods that can be used to test for a difference between two sets of time series data, including t-test, Mann-Whitney U test, Wilcoxon signed-rank test, and ANOVA. The choice of method depends on the nature of the data and the assumptions about the data distribution and dependence.
+
+## Splitting the data{#102}
+
+First we have to split the data `iaq$HEPA` & `iaq$No HEPA` into individual data frames `hepa` and `control`. This is in order to be able to stich them back together in line plots at a later stage and use functions like `abline` to plot when the change happens. We will then for each of the data frames use the `head()` and `tail()` funtions to display the first and last valuse for each as a sense check. 
+
+We will use the `iaq2a` dataset as this if for a 2 month consecutive matched period; i.e. there is data for both `HEPA` and `No HEPA`. Because of the changes in PM~1~ readings by location; bay or corridor; we will only compare bay sensors from bays D & H on wards F6 & G6.
+
+## Descriptive statistics: `HEPA` vs `No HEPA`{#103}
+
+Using the `describe.by()` from the `psych` package we can very easily produce descriptive statistics for both the `hepa` and `control` dataframes. We can the use `sapply()` to perform either an independent t-test or a Wilcoxon rank test as shown in Table. [\@ref(tab:t103)]{color="blue"} .
+
+The Wilcoxon test is a non-parametric alternative to the t-test for comparing two means and is particularly recommended in a situation where the data are not normally distributed as described in the particulates chapter. It does however assume independence within groups which we will discuss in a later section.
+
+```{r eval=loadstats}
+
+hepa <- iaq2d[iaq2d$sensLocHEPA=="BD_G+" |
+                iaq2d$sensLocHEPA=="BH_G+",]  # HEPA filters
+
+control <- iaq2d[iaq2d$sensLocHEPA=="BD_F-" |
+                iaq2d$sensLocHEPA=="BH_F-",] # No HEPA filters
+
+hepa.stats <- describeBy(hepa[,4:11])  # Descriptive stats for HEPA
+control.stats <- describeBy(control[,4:11])  # Descriptive stats for no HEPA
+
+wilresults <- sapply(c(4:11), function(i) {wilcox.test(hepa[,i],control[,i])}) # Independent MW-test
+wilres <- as.data.frame(t(wilresults[3,])) # This selects just the p-values.
+pvalwil <- round(as.numeric(t(wilres)),3)
+pvalwil1 <- if_else(pvalwil<0.001, "<0.001","ns")
+
+ttresults <- sapply(c(4:11), function(i) {t.test(hepa[,i],control[,i], paired=FALSE)}) # Independent t-test
+# default is na.rm=TRUE
+ttres <- as.data.frame(
+  t(
+    ttresults[3,])) # This selects just the p-values.
+pvaltt <- round(
+  as.numeric(
+    t(
+      ttres)),3)
+pvaltt1 <- if_else(
+  pvaltt<0.001, 
+  "<0.001",
+  "ns")
+
+# Compile descriptive statistics results
+stats <- cbind.data.frame(
+  control.stats[,2:4],
+  hepa.stats[,2:4])
+stats <- round(stats,2)
+stats.res <- cbind.data.frame(
+  stats,
+  pvalwil1,
+  pvaltt1)
+colnames(stats.res) <- c(
+  "No HEPA (n)",
+  "mean",
+  "SD",
+  "HEPA (n)",
+  "mean",
+  "SD",
+  "p*",
+  "p**")
+```
+
+We can then use the `kable()` function in the `knitr` package to display these results. Table [\@ref(tab:t103)]{color="blue"}  shows the total number (n), mean and standard deviation (SD) for both the `No HEPA` and 'HEPA` states. 
+
+The two aforementioned statistical tests are used to infer if there is a statistically significant difference between the Bay D and H sensors on ward F6 (No HEPA) versus those on G6 (HEPA).
+
+As you can see all of the tests produce a significant result deemed as a p-value of <0.001. 
+
+There is therefore a suggestion that the ACUs installed on G6 or an intrinsic differrence on G6 itself had an effect on all parameters; PM~1~, PM~2.5~, PM~4~, PM~10~, temperature, humidity, air pressure and carbon dioxide. Given the wards  have differing orientations and other underlying characteristics such as differences in background mechanical ventilation these differrence may not necessarily wholly be due to the ACUs. In Chapter [\@ref(107)]{color="blue"} we will compare the two wards using `iaq2c` when both wards had ACUs installed to examine any baseline differences in the wards.
+
+```{r t103, eval=runtables}
+knitr::kable(
+  stats.res,
+  format = "latex",
+  booktabs = TRUE,
+  caption = 'A table of summary statistics comparing the HEPA and No HEPA groups. $*$ = Wilcoxon, $**$ = T-test'
+)
+```
+```{r f103z, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="A table of summary statistics comparing the HEPA and No HEPA groups. $*$ = Wilcoxon, $**$ = T-test"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f103z-1.png")
+```
+In order to ensure these differences are not due to confounding we will fist make an assessment of how much of the data is missing as this may lead to wrong inferences being made about between group (`HEPA` vs `No HEPA`) differences.
+
+## Missing Data - Sensors D & H on Ward B plus Sensor C on Ward A{missing}
+
+These sensors are the only ones located in the bays with data spanning the `HEPA` and `No HEPA` periods. We may at a later date examine the corridor sensors but they; unlike with the bay sensors; are the most likely to be confounded given their differring locations on the ward and different ward layouts.
+
+The first 3 tables [\@ref(tab:tBCG)]{color="blue"}, [\@ref(tab:tBDF)]{color="blue"} & [\@ref(tab:tBHF)]{color="blue"} detail the dates where data is missing and the duration of each of the gaps.
+
+The final table [\@ref(tab:tBDHAC)]{color="blue"} in this section shows the percentages of data missing for each of these 3 sensors. As would be expected there is more data missing for the latest period as sensors went missing or were unplugged. For ward A the latest period was `No HEPA` as the ACUs were removed in early October 2022. For ward B the last period was `HEPA` as the ACUs were installed in Late March 2022 and will be in situ till March 2023.
+
+As you can see from table [\@ref(tab:tBDHAC)]{color="blue"} there was no data recorded for the bay C sensor between the 24th July 2022 and the 24th of november and there was only 
+
+```{r BDHAC, eval=loadstats}
+# Identify sensor names.
+
+sensors.hepa <- unique(hepa$sensLocHEPA)
+sensors.control <- unique(control$sensID)
+
+# Create sensor data frame `HEPA`
+
+BH_GHEPA <- iaq2d[iaq2d$sensLocHEPA == "BH_G+",] # Sensor in Bay H on G6 in the HEPA state
+BD_GHEPA <- iaq2d[iaq2d$sensLocHEPA == "BD_G+",] # Sensor in Bay D on G6 in the HEPA state
+BC_GHEPA <- iaq2d[iaq2d$sensLocHEPA == "BC_G+",] # Sensor in Bay C on G6 in the HEPA state*
+
+BD_FHEPA <- iaq2d[iaq2d$sensLocHEPA == "BD_F+",] # Sensor in Bay D on F6 in the HEPA state*
+BH_FHEPA <- iaq2d[iaq2d$sensLocHEPA == "BH_F+",] # Sensor in Bay H on G6 in the HEPA state*
+
+CG_GHEPA <- iaq2d[iaq2d$sensLocHEPA == "CG_G+",] # Sensor in Reception on G6 in the HEPA state*
+CC_GHEPA <- iaq2d[iaq2d$sensLocHEPA == "CC_G+",] # Sensor outside Bays C&D on G6 in the HEPA state*
+CG_FHEPA <- iaq2d[iaq2d$sensLocHEPA == "CG_F+",] # Sensor outside Bays G&H (nr double door) on F6 with HEPA*
+CC_FHEPA <- iaq2d[iaq2d$sensLocHEPA == "CC_F+",] # Sensor at the nurses station on F6 in the HEPA state*
+
+# No HEPA
+
+BH_GNoHEPA <- iaq2d[iaq2d$sensLocHEPA == "BH_G-",] # Sensor in Bay H on G6 in the No HEPA state (missing)
+BD_GNoHEPA <- iaq2d[iaq2d$sensLocHEPA == "BD_G-",] # Sensor in Bay D on G6 in the No HEPA state (missing)
+
+BC_GNoHEPA <- iaq2d[iaq2d$sensLocHEPA == "BC_G-",] # *Sensor in Bay C on G6 in the No HEPA state*
+
+BD_FNoHEPA <- iaq2d[iaq2d$sensLocHEPA == "BD_F-",] # *Sensor in Bay D on F6 in the No HEPA state*
+BH_FNoHEPA <- iaq2d[iaq2d$sensLocHEPA == "BH_F-",] # *Sensor in Bay H on G6 in the No HEPA state*
+
+CG_GNoHEPA <- iaq2d[iaq2d$sensLocHEPA == "CG_G-",] # Sensor in Reception on G6 in the No HEPA state*
+CC_GNoHEPA <- iaq2d[iaq2d$sensLocHEPA == "CC_G-",] # Sensor outside Bays C&D on G6 in the No HEPA state*
+CG_FNoHEPA <- iaq2d[iaq2d$sensLocHEPA == "CG_F-",] # Sensor outside Bays G&H (nr double door) on F6 with No HEPA*
+CC_FNoHEPA <- iaq2d[iaq2d$sensLocHEPA == "CC_F-",] # Sensor at the nurses station on F6 in the No HEPA state*
+
+## Compute theoretical length of full data set
+#(length(seq(from = iaq2d$date[1], tail(iaq2d$date-1, n=1), by = "min"))*2 - length(seq(from = tail(iaq2a$date, n=1), iaq2c$date[1], by = "min"))*2) # Number of minutes in time period
+# The theoretical "complete" length of the full data set is 843840
+
+#(length(seq(from = iaq2a$date[1], tail(iaq2a$date, n=1), by = "min"))*2)
+# The theoretical "complete" length of iaq2a i.e. F6 No HEPA period is 126720
+
+#(length(seq(from = iaq2c$date[1], tail(iaq2d$date, n=1), by = "min"))*2)
+# The theoretical "complete" length of iaq2a i.e. F6 HEPA period is 717120
+
+#(length(seq(from = iaq2d$date[1], tail(iaq2c$date, n=1), by = "min"))*2)
+# The theoretical "complete" length of iaq2a i.e. G6 HEPA period is 708360
+
+#(length(seq(from = iaq2b$date[1], tail(iaq2b$date, n=1), by = "min"))*2)
+# The theoretical "complete" length of iaq2a i.e. G6 No HEPA period is 135480
+
+
+missPercBC_G <- (1-((length(c(BC_GNoHEPA$pm1,BC_GHEPA$pm1)))/843840))*100 # Theoretical missing fraction
+missPercBC_G <- round(missPercBC_G,1)
+missPercBC_G_NoHEPA <- (1-((length(c(BC_GNoHEPA$pm1)))/135480))*100 # Theoretical missing fraction
+missPercBC_G_NoHEPA <- round(missPercBC_G_NoHEPA,1)
+missPercBC_G_HEPA <- (1-((length(c(BC_GHEPA$pm1)))/708360))*100 # Theoretical missing fraction
+missPercBC_G_HEPA <- round(missPercBC_G_HEPA,1)
+
+missPercBD_F <- (1-((length(c(BD_FNoHEPA$pm1,BD_FHEPA$pm1)))/843840))*100 # Theoretical missing fraction
+missPercBD_F <- round(missPercBD_F,1)
+missPercBD_F_NoHEPA <- (1-((length(c(BD_FNoHEPA$pm1)))/126720))*100 # Theoretical missing fraction
+missPercBD_F_NoHEPA <- round(missPercBD_F_NoHEPA,1)
+missPercBD_F_HEPA <- (1-((length(c(BD_FHEPA$pm1)))/717120))*100 # Theoretical missing fraction
+missPercBD_F_HEPA <- round(missPercBD_F_HEPA,1)
+  
+missPercBH_F <- (1-((length(c(BH_FNoHEPA$pm1,BH_FHEPA$pm1)))/843840))*100 # Theoretical missing fraction
+missPercBH_F <- round(missPercBH_F,1)
+missPercBH_F_NoHEPA <- (1-((length(c(BH_FNoHEPA$pm1)))/126720))*100 # Theoretical missing fraction
+missPercBH_F_NoHEPA <- round(missPercBH_F_NoHEPA,1)
+missPercBH_F_HEPA <- (1-((length(c(BH_FHEPA$pm1)))/717120))*100 # Theoretical missing fraction
+missPercBH_F_HEPA <- round(missPercBH_F_HEPA,1)
+
+missPerc <- data.frame(
+  Sensor = c("Bay C Ward A", "Bay D Ward B", "Bay H Ward B"),
+  MissTotal = c(missPercBC_G, missPercBD_F, missPercBH_F),
+  MissNoHEPA = c(missPercBC_G_NoHEPA, missPercBD_F_NoHEPA, missPercBH_F_NoHEPA),
+  MissHEPA = c(missPercBC_G_HEPA, missPercBD_F_HEPA, missPercBH_F_HEPA)
+)
+```
+```{r BCG}
+#Compile vectors for longitudinal analysis for Bay D sensor in F6 
+
+sigBC_G <- c(BC_GHEPA$pm1,BC_GNoHEPA$pm1) # Combined longitudinally
+sensdatBC_G <- rbind.data.frame(BC_GHEPA,BC_GNoHEPA) # Combined vertically
+
+# Compute location of missing data
+missLocBC_G <- diff(as.numeric(sensdatBC_G$date))
+qBC_G <- which(missLocBC_G>3600) # These are the numerical loactions
+gapStartBC_G <- sensdatBC_G$date[qBC_G] # These are date stamps for the start of the gap (missing data)
+gapStopBC_G <- sensdatBC_G$date[qBC_G+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeBC_G <- as.numeric(gapStopBC_G) - as.numeric(gapStartBC_G)
+gapSizeBC_G <- (gapSizeBC_G/3600) # These are the size of the gaps in hours
+gapSizeBC_G <- round(gapSizeBC_G,1)
+nmissBC_G <- gapSizeBC_G*120
+wBC_G <- floor(nmissBC_G) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocBC_G <- qBC_G
+gapWidthBC_G <- wBC_G
+gapStartBC_G <- as.character(gapStartBC_G, "%d-%m-%Y %H:%M:%S")
+gapStopBC_G <- as.character(gapStopBC_G, "%d-%m-%Y %H:%M:%S")
+missResultsBC_G <- cbind.data.frame(gapStartBC_G, gapStopBC_G, gapSizeBC_G, gapWidthBC_G)
+missResultsBC_G <- adorn_totals(missResultsBC_G, where = "row")
+```
+```{r tBCG, eval=runtables}
+knitr::kable(
+  missResultsBC_G,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for bay C ward A sensor"
+  )
+```
+```{r fBCG, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for bay C ward A sensor"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fBC_G-1.png")
+```
+```{r BDF}
+#Compile vectors for longitudinal analysis for Bay D sensor in F6 
+
+sigBD_F <- c(BD_FNoHEPA$pm1,BD_FHEPA$pm1) # Combined longitudinally
+sensdatBD_F <- rbind.data.frame(BD_FNoHEPA,BD_FHEPA) # Combined vertically
+
+# Compute location of missing data
+missLocBD_F <- diff(as.numeric(sensdatBD_F$date))
+qBD_F <- which(missLocBD_F>3600) # These are the numerical loactions
+gapStartBD_F <- sensdatBD_F$date[qBD_F] # These are date stamps for the start of the gap (missing data)
+gapStopBD_F <- sensdatBD_F$date[qBD_F+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeBD_F <- as.numeric(gapStopBD_F) - as.numeric(gapStartBD_F)
+gapSizeBD_F <- (gapSizeBD_F/3600) # These are the size of the gaps in hours
+gapSizeBD_F <- round(gapSizeBD_F,1)
+nmissBD_F <- gapSizeBD_F*120
+wBD_F <- floor(nmissBD_F) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocBD_F <- qBD_F
+gapWidthBD_F <- wBD_F
+gapStartBD_F <- as.character(gapStartBD_F, "%d-%m-%Y %H:%M:%S")
+gapStopBD_F <- as.character(gapStopBD_F, "%d-%m-%Y %H:%M:%S")
+missResultsBD_F <- cbind.data.frame(gapStartBD_F, gapStopBD_F, gapSizeBD_F, gapWidthBD_F)
+missResultsBD_F <- adorn_totals(missResultsBD_F, where = "row")
+```
+```{r tBDF, eval=runtables}
+knitr::kable(
+  missResultsBD_F,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for bay D ward B sensor"
+  )
+```
+```{r fBDF, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for bay D ward B sensor"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fBD_F-1.png")
+```
+```{r BHF}
+#Compile vectors for longitudinal analysis for Bay D sensor in F6 
+
+sigBH_F <- c(BH_FNoHEPA$pm1,BH_FHEPA$pm1) # Combined longitudinally
+sensdatBH_F <- rbind.data.frame(BH_FNoHEPA,BH_FHEPA) # Combined vertically
+
+# Compute location of missing data
+missLocBH_F <- diff(as.numeric(sensdatBH_F$date))
+qBH_F <- which(missLocBH_F > 3600) # These are the numerical loactions
+gapStartBH_F <- sensdatBH_F$date[qBH_F] # These are date stamps for the start of the gap (missing data)
+gapStopBH_F <- sensdatBH_F$date[qBH_F+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeBH_F <- as.numeric(gapStopBH_F) - as.numeric(gapStartBH_F)
+gapSizeBH_F <- (gapSizeBH_F/3600) # These are the size of the gaps in hours
+gapSizeBH_F <- round(gapSizeBH_F,1)
+nmissBH_F <- gapSizeBH_F*120
+wBH_F <- floor(nmissBH_F) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocBH_F <- qBH_F
+gapWidthBH_F <- wBH_F
+gapStartBH_F <- as.character(gapStartBH_F, "%d-%m-%Y %H:%M:%S")
+gapStopBH_F <- as.character(gapStopBH_F, "%d-%m-%Y %H:%M:%S")
+missResultsBH_F <- cbind.data.frame(gapStartBH_F, gapStopBH_F, gapSizeBH_F, gapWidthBH_F)
+missResultsBH_F <- adorn_totals(missResultsBH_F, where = "row")
+```
+```{r tBHF, eval=runtables}
+knitr::kable(
+  missResultsBH_F,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for bay H ward B sensor"
+  )
+```
+```{r fBHF, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for bay H ward B sensor"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fBH_F-1.png")
+```
+```{r tBDHAC, eval=runtables}
+knitr::kable(
+  missPerc,
+  col.names = c("Sensor location", "Total missing data (%)", "No HEPA missing data (%)", "HEPA missing data (%)"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Table showing percentages of missing data for sensors D and H from ward B and sensor C from Ward A. N.B. The No HEPA period for ward A follows the HEPA period hence why the percentage increases in the No-HEPA period."
+  )
+```
+```{r fBDHACz, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Table showing percentages of missing data for sensors D and H from ward B and sensor C from Ward A. N.B. The No HEPA period for ward A follows the HEPA period hence why the percentage increases in the No-HEPA period."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fBDHACz-1.png")
+```
+
+## CUSUM - Cumulative Sum
+
+The Cumulative Sum (CUSUM) method is a statistical technique that is used to detect changes in a time series data by monitoring the cumulative sum of the deviations from a target value or reference mean. The CUSUM method is based on the idea that, under normal operating conditions, the data will follow a predictable pattern or mean, and any deviation from this pattern is considered an anomaly.
+
+To implement the CUSUM method, the time series data is first standardized by subtracting the target mean and dividing by the standard deviation. The cumulative sum of the standardized deviations is then calculated and monitored over time. If the cumulative sum exceeds a predetermined threshold, it indicates a change in the underlying data distribution, and the changepoint is marked. The threshold is set to balance the sensitivity of the method and the likelihood of false alarms.
+
+The CUSUM method is particularly useful in detecting small and gradual changes in the time series data, which may be missed by other changepoint detection methods such as simple thresholding or the mean-shift method. The method is also relatively simple to implement, does not require assumptions about the distribution of the data, and can be used to detect multiple changepoints in a single time series.
+
+In practice, the CUSUM method can be applied in various fields, including quality control, finance, manufacturing, and health care, to monitor and detect changes in the underlying processes and make informed decisions.
+
+## CUSUM pre and post HEPA - **D bay** - F6{#106}
+
+The CUSUM method can be used to identify when an air cleaner has been switched off by monitoring the time series data of the air particulate concentrations. The idea is to detect deviations from a target value or reference mean, which in this case could be the air particulate concentration under normal operating conditions with the air cleaner turned on.
+
+To implement the CUSUM method, the air particulate concentration data is first standardized by subtracting the target mean and dividing by the standard deviation. The cumulative sum of the standardized deviations is then calculated and monitored over time. If the cumulative sum exceeds a predetermined threshold, it indicates a change in the underlying data distribution, which in this case could mean that the air cleaner has been switched off.
+
+Once the changepoint is identified, the operator can take action to correct the problem, such as turning the air cleaner back on. The CUSUM method can also be used to monitor the air particulate concentration over time and detect changes in the air cleaner performance, such as degradation or maintenance issues.
+
+In summary, the CUSUM method can be used to detect changes in air particulate concentrations caused by the switch off of an air cleaner. The method is simple to implement, does not require assumptions about the distribution of the data, and can be used to monitor and detect changes in real-time, making it a valuable tool for ensuring the proper functioning of the air cleaner and maintaining air quality.
+
+
+
+```{r eval=loadstats}
+# CUSUM model
+## Compute mean difference
+sigBD_F <- c(BD_FNoHEPA$pm1,BD_FHEPA$pm1)
+sig1BD_FNoHEPA <- BD_FNoHEPA$pm1
+sig2BD_FHEPA <- BD_FHEPA$pm1
+mu <- mean(sigBD_F)   # This is the mean of the data.
+n <- length(sigBD_F)
+
+# Predeclarations
+# Create empty vectors containing just zeros.
+group <- numeric(length = n)
+x <- numeric(length = n)
+x_less_mu <- numeric(length = n)
+cusum <- numeric(length = n)
+
+for (i in 1:n){
+  x_less_mu[i] <- sigBD_F[i] - mu
+  if (i==1){
+    cusum[i]    <- x_less_mu[i]
+  } else {
+    cusum[i]    <- x_less_mu[i] + cusum[i-1]
+  }
+}
+
+# Compute range of CUSUM plot
+cusum.range <- max(cusum) - min(cusum)
+
+# Locate minimum and maximum values
+#min(cusum)
+#which(cusum == min(cusum))
+
+#max(cusum)
+#which(cusum == max(cusum))
+
+# Produce CUSUM chart
+#plot(cusum, ylim=c((min(cusum)-10),max(cusum)+10), ylab="CUSUM score", xlab="Epoch", type="l", col="blue")
+#abline(h=mu, lty=2)
+#abline(v=length(sig2), col="red", lty=2)
+#text(0,200000,label)
+```
+```{r f106, eval=rungraphs2, fig.width = 10, fig.height = 10, fig.cap="CUSUM plot overlaid with signal for $PM_1$ ($\\mu$g per m$^3$) for a sensor in bay D ward F6"}
+# Compute smoothing spline
+x <- 1:length(sigBD_F)
+splinevect <- smooth.spline(x,sigBD_F, spar = 0.6)
+# Produce CUSUM chart with signal overlay
+plot(cusum, 
+     ylim=c((min(cusum)-10),
+            max(cusum)+10), 
+     ylab="CUSUM score", 
+     xlab="Epoch", 
+     type="l", 
+     col="blue") +
+  abline(h=mu, lty=2) +
+  #abline(v=length(BD_FHEPA), col="red", lty=2) +
+  lines(sigBD_F*1000, type="l", ylab = "PM1") +
+  lines(splinevect, col="red", lwd=2) +
+  abline(v=length(sig1BD_FNoHEPA), lty=2, lwd=2, col="orange") +
+  #abline(v=length(sig2BD_FHEPA), lty=2, lwd=2, col="orange") +
+  text(500000,400000,"Bay D Ward F6")
+```
+```{r f106z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "CUSUM plot overlaid with signal for $PM_1$ ($\\mu$g per m$^3$) for a sensor in bay D ward F6"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f10.5-1.png")
+```
+
+## CUSUM pre and post HEPA - **H bay** - F6{#107}
+
+As can be seen from Figure [\@ref(fig:f106z)]{color="blue"} the CUSUM methodology identified the point at which the ACU system was installed with a minor delay potentially indicating that the system took time to clean the environment as well as the air; i.e. for example curtains resuspending particulates into the air.
+
+We can now analyse another sensor from Bay H from both A and B to see if this result can be replicated.
+
+```{r eval=loadstats}
+# CUSUM model
+sigBH_F <- c(BH_FNoHEPA$pm1,BH_FHEPA$pm1)
+sig1BH_FNoHEPA <- BH_FNoHEPA$pm1
+sig2BH_FHEPA <- BH_FHEPA$pm1
+
+## Compute mean difference
+mu <- mean(sigBH_F)   # This is the mean of the data.
+n <- length(sigBH_F)
+
+# Predeclarations
+# Create empty vectors containing just zeros.
+group <- numeric(length = n)
+x <- numeric(length = n)
+x_less_mu <- numeric(length = n)
+cusum <- numeric(length = n)
+
+for (i in 1:n){
+  x_less_mu[i] <- sigBH_F[i] - mu
+  if (i==1){
+    cusum[i]    <- x_less_mu[i]
+  } else {
+    cusum[i]    <- x_less_mu[i] + cusum[i-1]
+  }
+}
+
+# Compute range of CUSUM plot
+cusum.range <- max(cusum) - min(cusum)
+
+# Locate minimum and maximum values
+#min(cusum)
+#which(cusum == min(cusum))
+
+#max(cusum)
+#which(cusum == max(cusum))
+
+# Produce CUSUM chart
+#plot(cusum, ylim=c((min(cusum)-10),max(cusum)+10), ylab="CUSUM score", xlab="Epoch", type="l", col="blue")
+#abline(h=mu, lty=2)
+#abline(v=length(sig2), col="red", lty=2)
+#text(0,200000,label)
+```
+```{r f107, eval=rungraphs2, fig.width = 5, fig.height = 5, fig.cap="CUSUM plot overlaid with signal for $PM_1$ ($\\mu$g per m$^3$) for a sensor in bay H ward F6. Smoothing spline applied; spar = 0.6"}
+#Produce smoothing spline
+x <- 1:length(sigBH_F)
+splinevect <- smooth.spline(x,sigBH_F, spar = 0.6)
+# Produce CUSUM chart with signal overlay
+plot(cusum, 
+     ylim=c((min(cusum)-10),
+            max(cusum)+10), 
+     ylab="CUSUM score", 
+     xlab="Epoch", 
+     type="l", 
+     col="blue") +
+  abline(h=mu, lty=2) +
+  #abline(v=length(BH_FHEPA), col="red", lty=2) +
+  lines(sigBH_F*1000, type="l", ylab = "PM1") +
+  lines(splinevect, col="red", lwd=2) +
+  #abline(v=length(sig2BH_FHEPA), lty=2, lwd=2, col="orange") +
+  abline(v=length(sig1BH_FNoHEPA), lty=2, lwd=2, col="orange") +
+  text(500000,400000,"Bay H Ward B")
+```
+```{r f107z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "CUSUM plot overlaid with signal for $PM_1$ ($\\mu$g per m$^3$) for a sensor in bay H ward B"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f10.6-1.png")
+```
+
+
+## Descriptive statistics: `F6` vs `G6` with `HEPA`{#108}
+
+Changes in hospital ward orientation and design can affect indoor air quality, particularly particulate concentrations, in several ways.
+
+1. Solar radiation: Building orientation can impact the amount of solar radiation that enters the hospital ward, which in turn can affect indoor air temperature and humidity. Higher temperatures and humidity levels can lead to increased particulate concentrations by promoting the growth of mold, dust mites, and other allergens.
+
+2. Ventilation: Building orientation can also affect the amount of fresh air that enters the hospital ward through natural ventilation. A hospital ward with proper orientation can take advantage of prevailing winds, helping to bring in fresh air and reduce indoor particulate concentrations. On the other hand, if the hospital ward is not properly oriented, the air inside may become stagnant and lead to increased particulate concentrations. The pre-existing ventilation system between any two wards even though of same design, may over time have changed dramatically i.e. by becoming unbalanced affecting baseline ventilation rates.
+
+3. Air pollutants: Building orientation can also impact the amount of outdoor air pollutants that enter the hospital ward. For example, if the hospital ward faces a busy street or industrial area, it may be more likely to experience high levels of outdoor air pollutants, such as particulate matter and nitrogen oxides, which can enter the hospital ward and negatively impact indoor air quality.
+
+4. Microclimates: Building orientation can also impact the microclimate around the hospital ward, such as the amount of wind, precipitation, and solar radiation. These microclimate conditions can have an impact on the indoor air quality by affecting the dispersion of pollutants and the conditions for mold growth and other biological processes that can contribute to indoor air pollution.
+
+In summary, changes in hospital ward orientation can affect indoor air quality and particulate concentrations in various ways, including solar radiation, ventilation, air pollutants, and microclimate conditions. Proper hospital ward orientation can help to minimize these effects and maintain good indoor air quality.
+
+It is important to understand these background differences between our two intervention wards as well as our control wards as they will confound any findings with respect of indoor air quality changes as well as changes in nosocomial infections.
+
+To do this we will once again split the data but this time both wards will be in the `HEPA` state and we will use `iaq2c` which is created using the following:
+
+`iaq2c <- selectByDate(`
+  `iaq,`
+  `start = "25/03/2022",`
+  `end = "12/10/2022")`
+  
+I.e. it is selecting the period immediately post ACU installation on F6 on the 25^th^ March 2022 to the date the ACUs were removed from G6 on 12^th^ October 2022. We will stick with the same two bay sensors in bays D and H to ensure the data are comparable. We will also look for missing data to ensure that this is spread evenly.
+
+```{r eval=loadstats}
+G6 <- iaq2c[iaq2c$sensLocHEPA=="BD_G+" |
+                iaq2c$sensLocHEPA=="BH_G+",]  # HEPA filters
+
+F6 <- iaq2c[iaq2c$sensLocHEPA=="BD_F+" |
+                iaq2c$sensLocHEPA=="BH_F+",] # No HEPA filters
+
+F6.stats <- describeBy(F6[,4:11])  # Descriptive stats for HEPA
+F6.stats <- round(F6.stats,4)
+G6.stats <- describeBy(G6[,4:11])  # Descriptive stats for no HEPA
+G6.stats <- round(G6.stats,4)
+wilresults3 <- sapply(c(4:11), function(i) {wilcox.test(G6[,i],F6[,i])}) # Independent MW-test
+wilres3 <- as.data.frame(t(wilresults3[3,])) # This selects just the p-values.
+pvalwil3 <- round(as.numeric(t(wilres3)),3)
+pvalwil1_3 <- if_else(pvalwil3<0.001, "<0.001","ns")
+
+ttresults3 <- sapply(c(4:11), function(i) {t.test(G6[,i],F6[,i], paired=FALSE)}) # Independent t-test
+# default is na.rm=TRUE
+ttres3 <- as.data.frame(
+  t(
+    ttresults3[3,])) # This selects just the p-values.
+pvaltt3 <- round(
+  as.numeric(
+    t(
+      ttres3)),3)
+pvaltt1_3 <- if_else(
+  pvaltt3<0.001, 
+  "<0.001",
+  "ns")
+
+# Compile descriptive statistics results
+stats3 <- cbind.data.frame(
+  F6.stats[,2:4],
+  G6.stats[,2:4])
+stats3 <- round(stats3,2)
+stats.res3 <- cbind.data.frame(
+  stats3,
+  pvalwil1_3,
+  pvaltt1_3)
+colnames(stats.res3) <- c(
+  "F6 HEPA (n)",
+  "mean",
+  "SD",
+  "G6 HEPA (n)",
+  "mean",
+  "SD",
+  "p*",
+  "p**")
+```
+
+We can then use the `kable()` function again to display these results. Table [\@ref(tab:t103)]{color="blue"}  shows the total number (n), mean and standard deviation (SD) for both F6 and G6 in the `HEPA` state 25^th^ March - 12^th^ October 2022. 
+
+The two aforementioned statistical tests are used again to infer if there is a statistically significant difference between the Bay D and H sensors on ward F6 in the `HEPA` state versus those on G6 in the `HEPA` state.
+
+```{r t108, eval=runtables}
+knitr::kable(
+  stats.res3,
+  format = "latex",
+  booktabs = TRUE,
+  caption = 'A table of summary statistics comparing the F6 and G6 sensors both in the HEPA state. $*$ = Wilcoxon, $**$ = T-test'
+)
+```
+```{r f108z, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="A table of summary statistics comparing the F6 and G6 sensors both in the HEPA state. $*$ = Wilcoxon, $**$ = T-test"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f108z-1.png")
+```
+
+Again, both tests (T-Test and Wilcoxon), produce a significant result for all IAQ parameters deemed as a p-value of <0.001.
+
+There is therefore a suggestion that, despite ACUs being installed on both G6 and F6, that there was an, albeit smaller difference between the two wards. This could be due to either a difference:
+
+1.between the ACU systems installed on the two wards or
+2.between the pre-existing ventilation systems on the two wards.
+
+We know that the IAQ parameters change markedly month to month often to a greater extent than the effect of the ACU systems installed. For example in Figure [\@ref(fig:f222h1z)]{color="blue"} if you look at the bottom middle panel the particulates are lower in the `No HEPA` state in February (`BH_F-`; Bay H ward F6) than for the `HEPA` state in March (`BH_G+`; Bay H ward G6). Accepting that the wards are not the same in this comparison and are orientated differently it is important to highlight that month on month trends seem to have at times a greater impact than `HEPA` vs `NO HEPA` trends. To highlight this lets examine the Bay H sensors for `iaq2c` i.e. the period of time when both wards had HEPA installed. We would expect there to be less of a differrence between the two bays when compared with Figure [\@ref(fig:f222h1z)]{color="blue"}. The bay H sensor on G6 stopped recording at 18:21:23 on the 7^th^ September 2022 as revealed by: `tail(iaq2c[iaq2c$sensLocHEPA=="BD_G+",],1`. We will limit data collected to before this time point using `iaq2c$date <= "2022-09-07 18:21:23"`.
+
+Also before we use the iaq2c dataset for comparison we will first evaluate the missing data for the BH_F+ vs BH_G+ as well as the BD_F+ vs BD_G+ data and then remove the gaps from the mirrored sensor such that we are comparing exact matched HEPA periods.
+
+```{r iaq2cmatching, eval=loadstats}
+#The suffix 2 here will be used to delineate iaq2c missing gap analysis from iaq2d
+
+firstiaq2c <- data.frame(
+  date = c("2022-03-26 00:00:04"),
+  sensID = c(NA),
+  dateTime = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  pres = c(NA),
+  ser = c(NA),
+  HEPA = c(NA),
+  day = c(NA),
+  spike2 = c(NA),
+  ward = c(NA),
+  wardLoc = c(NA),
+  wardLocHEPA = c(NA),
+  sensLoc = c(NA),
+  sensLocHEPA = c(NA),
+  weekend = c(NA),
+  time = c(NA),
+  daytime = c(NA),
+  svp1 = c(NA),
+  svp2 = c(NA),
+  svp = c(NA),
+  vp = c(NA),
+  period = c(NA),
+  HEPAperiod = c(NA)
+)
+
+lastiaq2c <- data.frame(
+  date = c("2022-10-12 23:59:57"),
+  sensID = c(NA),
+  dateTime = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  pres = c(NA),
+  ser = c(NA),
+  HEPA = c(NA),
+  day = c(NA),
+  spike2 = c(NA),
+  ward = c(NA),
+  wardLoc = c(NA),
+  wardLocHEPA = c(NA),
+  sensLoc = c(NA),
+  sensLocHEPA = c(NA),
+  weekend = c(NA),
+  time = c(NA),
+  daytime = c(NA),
+  svp1 = c(NA),
+  svp2 = c(NA),
+  svp = c(NA),
+  vp = c(NA),
+  period = c(NA),
+  HEPAperiod = c(NA)
+)
+
+firstiaq2c$date <- as.POSIXct(firstiaq2c$date,
+                                  format = "%Y-%m-%d %H:%M:%S",
+                                  tz = "GMT")
+
+lastiaq2c$date <- as.POSIXct(lastiaq2c$date,
+                                  format = "%Y-%m-%d %H:%M:%S",
+                                  tz = "GMT")
+
+BH_GHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "BH_G+",] # Sensor in Bay H on G6 in the HEPA state
+BH_GHEPA2 <- rbind(firstiaq2c,BH_GHEPA2,lastiaq2c)
+BD_GHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "BD_G+",] # Sensor in Bay D on G6 in the HEPA state
+BD_GHEPA2 <- rbind(firstiaq2c,BD_GHEPA2,lastiaq2c)
+BD_FHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "BD_F+",] # Sensor in Bay D on F6 in the HEPA state*
+BD_FHEPA2 <- rbind(firstiaq2c,BD_FHEPA2,lastiaq2c)
+BH_FHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "BH_F+",] # Sensor in Bay H on G6 in the HEPA state*
+BH_FHEPA2 <- rbind(firstiaq2c,BH_FHEPA2,lastiaq2c)
+
+CG_GHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "CG_G+",] # Sensor in Reception on G6 in the HEPA state*
+CG_GHEPA2 <- rbind(firstiaq2c,CG_GHEPA2,lastiaq2c)
+CC_GHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "CC_G+",] # Sensor outside Bays C&D on G6 in the HEPA state*
+CC_GHEPA2 <- rbind(firstiaq2c,CC_GHEPA2,lastiaq2c)
+CG_FHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "CG_F+",] # Sensor outside Bays G&H (nr double door) on F6 with HEPA*
+CG_FHEPA2 <- rbind(firstiaq2c,CG_FHEPA2,lastiaq2c)
+CC_FHEPA2 <- iaq2c[iaq2c$sensLocHEPA == "CC_F+",] # Sensor at the nurses station on F6 in the HEPA state*
+CC_FHEPA2 <- rbind(firstiaq2c,CC_FHEPA2,lastiaq2c)
+```
+
+```{r BHG2, eval=loadstats}
+#Compile vectors for longitudinal analysis for Bay D sensor in F6 
+
+sigBH_G2 <- c(BH_GHEPA2$pm1) # Combined longitudinally
+sensdatBH_G2 <- BH_GHEPA2 # Combined vertically
+
+# Compute location of missing data
+missLocBH_G2 <- diff(as.numeric(sensdatBH_G2$date))
+qBH_G2 <- which(missLocBH_G2 > 3600) # These are the numerical loactions
+gapStartBH_G2 <- sensdatBH_G2$date[qBH_G2] # These are date stamps for the start of the gap (missing data)
+gapStopBH_G2 <- sensdatBH_G2$date[qBH_G2+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeBH_G2 <- as.numeric(gapStopBH_G2) - as.numeric(gapStartBH_G2)
+gapSizeBH_G2 <- (gapSizeBH_G2/3600) # These are the size of the gaps in hours
+gapSizeBH_G2 <- round(gapSizeBH_G2,1)
+nmissBH_G2 <- gapSizeBH_G2*120
+wBH_G2 <- floor(nmissBH_G2) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocBH_G2 <- qBH_G2
+gapWidthBH_G2 <- wBH_G2
+gapStartBH_G2 <- as.character(gapStartBH_G2, "%d-%m-%Y %H:%M:%S")
+gapStopBH_G2 <- as.character(gapStopBH_G2, "%d-%m-%Y %H:%M:%S")
+missResultsBH_G2 <- cbind.data.frame(gapStartBH_G2, gapStopBH_G2, gapSizeBH_G2, gapWidthBH_G2)
+missResultsBH_G2 <- adorn_totals(missResultsBH_G2, where = "row")
+```
+```{r BDG2, eval=loadstats}
+#Compile vectors for longitudinal analysis for Bay D sensor in F6 
+
+sigBD_G2 <- c(BD_GHEPA2$pm1) # Combined longitudinally
+sensdatBD_G2 <- BD_GHEPA2 # Combined vertically
+
+# Compute location of missing data
+missLocBD_G2 <- diff(as.numeric(sensdatBD_G2$date))
+qBD_G2 <- which(missLocBD_G2 > 3600) # These are the numerical loactions
+gapStartBD_G2 <- sensdatBD_G2$date[qBD_G2] # These are date stamps for the start of the gap (missing data)
+gapStopBD_G2 <- sensdatBD_G2$date[qBD_G2+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeBD_G2 <- as.numeric(gapStopBD_G2) - as.numeric(gapStartBD_G2)
+gapSizeBD_G2 <- (gapSizeBD_G2/3600) # These are the size of the gaps in hours
+gapSizeBD_G2 <- round(gapSizeBD_G2,1)
+nmissBD_G2 <- gapSizeBD_G2*120
+wBD_G2 <- floor(nmissBD_G2) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocBD_G2 <- qBD_G2
+gapWidthBD_G2 <- wBD_G2
+gapStartBD_G2 <- as.character(gapStartBD_G2, "%d-%m-%Y %H:%M:%S")
+gapStopBD_G2 <- as.character(gapStopBD_G2, "%d-%m-%Y %H:%M:%S")
+missResultsBD_G2 <- cbind.data.frame(gapStartBD_G2, gapStopBD_G2, gapSizeBD_G2, gapWidthBD_G2)
+missResultsBD_G2 <- adorn_totals(missResultsBD_G2, where = "row")
+```
+```{r BDF2, eval=loadstats}
+#Compile vectors for longitudinal analysis for Bay D sensor in F6 
+
+sigBD_F2 <- c(BD_FHEPA2$pm1) # Combined longitudinally
+sensdatBD_F2 <- BD_FHEPA2 # Combined vertically
+
+# Compute location of missing data
+missLocBD_F2 <- diff(as.numeric(sensdatBD_F2$date))
+qBD_F2 <- which(missLocBD_F2 > 3600) # These are the numerical loactions
+gapStartBD_F2 <- sensdatBD_F2$date[qBD_F2] # These are date stamps for the start of the gap (missing data)
+gapStopBD_F2 <- sensdatBD_F2$date[qBD_F2+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeBD_F2 <- as.numeric(gapStopBD_F2) - as.numeric(gapStartBD_F2)
+gapSizeBD_F2 <- (gapSizeBD_F2/3600) # These are the size of the gaps in hours
+gapSizeBD_F2 <- round(gapSizeBD_F2,1)
+nmissBD_F2 <- gapSizeBD_F2*120
+wBD_F2 <- floor(nmissBD_F2) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocBD_F2 <- qBD_F2
+gapWidthBD_F2 <- wBD_F2
+gapStartBD_F2 <- as.character(gapStartBD_F2, "%d-%m-%Y %H:%M:%S")
+gapStopBD_F2 <- as.character(gapStopBD_F2, "%d-%m-%Y %H:%M:%S")
+missResultsBD_F2 <- cbind.data.frame(gapStartBD_F2, gapStopBD_F2, gapSizeBD_F2, gapWidthBD_F2)
+missResultsBD_F2 <- adorn_totals(missResultsBD_F2, where = "row")
+```
+```{r BHF2, eval=loadstats}
+#Compile vectors for longitudinal analysis for Bay D sensor in F6 
+
+sigBH_F2 <- c(BH_FHEPA2$pm1) # Combined longitudinally
+sensdatBH_F2 <- BH_FHEPA2 # Combined vertically
+
+# Compute location of missing data
+missLocBH_F2 <- diff(as.numeric(sensdatBH_F2$date))
+qBH_F2 <- which(missLocBH_F2 > 3600) # These are the numerical loactions
+gapStartBH_F2 <- sensdatBH_F2$date[qBH_F2] # These are date stamps for the start of the gap (missing data)
+gapStopBH_F2 <- sensdatBH_F2$date[qBH_F2+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeBH_F2 <- as.numeric(gapStopBH_F2) - as.numeric(gapStartBH_F2)
+gapSizeBH_F2 <- (gapSizeBH_F2/3600) # These are the size of the gaps in hours
+gapSizeBH_F2 <- round(gapSizeBH_F2,1)
+nmissBH_F2 <- gapSizeBH_F2*120
+wBH_F2 <- floor(nmissBH_F2) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocBH_F2 <- qBH_F2
+gapWidthBH_F2 <- wBH_F2
+gapStartBH_F2 <- as.character(gapStartBH_F2, "%d-%m-%Y %H:%M:%S")
+gapStopBH_F2 <- as.character(gapStopBH_F2, "%d-%m-%Y %H:%M:%S")
+missResultsBH_F2 <- cbind.data.frame(gapStartBH_F2, gapStopBH_F2, gapSizeBH_F2, gapWidthBH_F2)
+missResultsBH_F2 <- adorn_totals(missResultsBH_F2, where = "row")
+```
+```{r CGG2, eval=loadstats}
+#Compile vectors for longitudinal analysis for Bay D sensor in F6 
+
+sigCG_G2 <- c(CG_GHEPA2$pm1) # Combined longitudinally
+sensdatCG_G2 <- CG_GHEPA2 # Combined vertically
+
+# Compute location of missing data
+missLocCG_G2 <- diff(as.numeric(sensdatCG_G2$date))
+qCG_G2 <- which(missLocCG_G2 > 3600) # These are the numerical loactions
+gapStartCG_G2 <- sensdatCG_G2$date[qCG_G2] # These are date stamps for the start of the gap (missing data)
+gapStopCG_G2 <- sensdatCG_G2$date[qCG_G2+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeCG_G2 <- as.numeric(gapStopCG_G2) - as.numeric(gapStartCG_G2)
+gapSizeCG_G2 <- (gapSizeCG_G2/3600) # These are the size of the gaps in hours
+gapSizeCG_G2 <- round(gapSizeCG_G2,1)
+nmissCG_G2 <- gapSizeCG_G2*120
+wCG_G2 <- floor(nmissCG_G2) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocCG_G2 <- qCG_G2
+gapWidthCG_G2 <- wCG_G2
+gapStartCG_G2 <- as.character(gapStartCG_G2, "%d-%m-%Y %H:%M:%S")
+gapStopCG_G2 <- as.character(gapStopCG_G2, "%d-%m-%Y %H:%M:%S")
+missResultsCG_G2 <- cbind.data.frame(gapStartCG_G2, gapStopCG_G2, gapSizeCG_G2, gapWidthCG_G2)
+missResultsCG_G2 <- adorn_totals(missResultsCG_G2, where = "row")
+```
+```{r CCG2, eval=loadstats}
+#Compile vectors for longitudinal analysis for Bay D sensor in F6 
+
+sigCC_G2 <- c(CC_GHEPA2$pm1) # Combined longitudinally
+sensdatCC_G2 <- CC_GHEPA2 # Combined vertically
+
+# Compute location of missing data
+missLocCC_G2 <- diff(as.numeric(sensdatCC_G2$date))
+qCC_G2 <- which(missLocCC_G2 > 3600) # These are the numerical loactions
+gapStartCC_G2 <- sensdatCC_G2$date[qCC_G2] # These are date stamps for the start of the gap (missing data)
+gapStopCC_G2 <- sensdatCC_G2$date[qCC_G2+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeCC_G2 <- as.numeric(gapStopCC_G2) - as.numeric(gapStartCC_G2)
+gapSizeCC_G2 <- (gapSizeCC_G2/3600) # These are the size of the gaps in hours
+gapSizeCC_G2 <- round(gapSizeCC_G2,1)
+nmissCC_G2 <- gapSizeCC_G2*120
+wCC_G2 <- floor(nmissCC_G2) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocCC_G2 <- qCC_G2
+gapWidthCC_G2 <- wCC_G2
+gapStartCC_G2 <- as.character(gapStartCC_G2, "%d-%m-%Y %H:%M:%S")
+gapStopCC_G2 <- as.character(gapStopCC_G2, "%d-%m-%Y %H:%M:%S")
+missResultsCC_G2 <- cbind.data.frame(gapStartCC_G2, gapStopCC_G2, gapSizeCC_G2, gapWidthCC_G2)
+missResultsCC_G2 <- adorn_totals(missResultsCC_G2, where = "row")
+```
+```{r CGF2, eval=loadstats}
+#Compile vectors for longitudinal analysis for Bay D sensor in F6 
+
+sigCG_F2 <- c(CG_FHEPA2$pm1) # Combined longitudinally
+sensdatCG_F2 <- CG_FHEPA2 # Combined vertically
+
+# Compute location of missing data
+missLocCG_F2 <- diff(as.numeric(sensdatCG_F2$date))
+qCG_F2 <- which(missLocCG_F2 > 3600) # These are the numerical loactions
+gapStartCG_F2 <- sensdatCG_F2$date[qCG_F2] # These are date stamps for the start of the gap (missing data)
+gapStopCG_F2 <- sensdatCG_F2$date[qCG_F2+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeCG_F2 <- as.numeric(gapStopCG_F2) - as.numeric(gapStartCG_F2)
+gapSizeCG_F2 <- (gapSizeCG_F2/3600) # These are the size of the gaps in hours
+gapSizeCG_F2 <- round(gapSizeCG_F2,1)
+nmissCG_F2 <- gapSizeCG_F2*120
+wCG_F2 <- floor(nmissCG_F2) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocCG_F2 <- qCG_F2
+gapWidthCG_F2 <- wCG_F2
+gapStartCG_F2 <- as.character(gapStartCG_F2, "%d-%m-%Y %H:%M:%S")
+gapStopCG_F2 <- as.character(gapStopCG_F2, "%d-%m-%Y %H:%M:%S")
+missResultsCG_F2 <- cbind.data.frame(gapStartCG_F2, gapStopCG_F2, gapSizeCG_F2, gapWidthCG_F2)
+missResultsCG_F2 <- adorn_totals(missResultsCG_F2, where = "row")
+```
+```{r CCF2, eval=loadstats}
+#Compile vectors for longitudinal analysis for Bay D sensor in F6 
+
+sigCC_F2 <- c(CC_FHEPA2$pm1) # Combined longitudinally
+sensdatCC_F2 <- CC_FHEPA2 # Combined vertically
+
+# Compute location of missing data
+missLocCC_F2 <- diff(as.numeric(sensdatCC_F2$date))
+qCC_F2 <- which(missLocCC_F2 > 3600) # These are the numerical loactions
+gapStartCC_F2 <- sensdatCC_F2$date[qCC_F2] # These are date stamps for the start of the gap (missing data)
+gapStopCC_F2 <- sensdatCC_F2$date[qCC_F2+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeCC_F2 <- as.numeric(gapStopCC_F2) - as.numeric(gapStartCC_F2)
+gapSizeCC_F2 <- (gapSizeCC_F2/3600) # These are the size of the gaps in hours
+gapSizeCC_F2 <- round(gapSizeCC_F2,1)
+nmissCC_F2 <- gapSizeCC_F2*120
+wCC_F2 <- floor(nmissCC_F2) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocCC_F2 <- qCC_F2
+gapWidthCC_F2 <- wCC_F2
+gapStartCC_F2 <- as.character(gapStartCC_F2, "%d-%m-%Y %H:%M:%S")
+gapStopCC_F2 <- as.character(gapStopCC_F2, "%d-%m-%Y %H:%M:%S")
+missResultsCC_F2 <- cbind.data.frame(gapStartCC_F2, gapStopCC_F2, gapSizeCC_F2, gapWidthCC_F2)
+missResultsCC_F2 <- adorn_totals(missResultsCC_F2, where = "row")
+```
+
+```{r tBDG2, eval=runtables}
+knitr::kable(
+  missResultsBD_G2,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for bay D ward A sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."
+  )
+```
+```{r fBDG2, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for bay D ward A sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fBD_G2-1.png")
+```
+```{r tBDF2, eval=runtables}
+knitr::kable(
+  missResultsBD_F2,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for bay D ward B sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."
+  )
+```
+```{r fBDF2, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for bay D ward B sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fBD_F2-1.png")
+```
+```{r tBHG2, eval=runtables}
+knitr::kable(
+  missResultsBH_G2,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for bay H ward A sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."
+  )
+```
+```{r fBHG2, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for bay H ward A sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fBH_G2-1.png")
+```
+
+```{r tBHF2, eval=runtables}
+knitr::kable(
+  missResultsBH_F2,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for bay H ward B sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."
+  )
+```
+```{r fBHF2, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for bay H ward B sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fBH_F2-1.png")
+```
+
+```{r tCCG2, eval=runtables}
+knitr::kable(
+  missResultsCC_G2,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for corridor C and D ward A sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."
+  )
+```
+```{r fCCG2, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for corridor C and D ward A sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fCC_G2-1.png")
+```
+```{r tCCF2, eval=runtables}
+knitr::kable(
+  missResultsCC_F2,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for corridor C and D ward B sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."
+  )
+```
+```{r fCCF2, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for corridor C and D ward B sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fCC_F2-1.png")
+```
+```{r tCGG2, eval=runtables}
+knitr::kable(
+  missResultsCG_G2,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for corridor G and H ward A sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."
+  )
+```
+```{r fCGG2, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for corridor G and H ward A sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fCG_G2-1.png")
+```
+```{r tCGF2, eval=runtables}
+knitr::kable(
+  missResultsCG_F2,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for corridor G and H ward B sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."
+  )
+```
+```{r fCGF2, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for corridor G and H ward B sensor between 26th March 2022 and 12th October 2022 (both wards in HEPA state)."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fCG_F2-1.png")
+```
+
+
+```{r}
+missPercBH_G2 <- (1-((length(c(BH_GHEPA2$pm1)))/578760))*100 # Theoretical missing fraction
+missPercBH_G2 <- round(missPercBH_G2,1)
+tail(missPercBH_G2,1)
+missPercBD_G2 <- (1-((length(c(BD_GHEPA2$pm1)))/578760))*100 # Theoretical missing fraction
+missPercBD_G2 <- round(missPercBD_G2,1)
+missPercBD_F2 <- (1-((length(c(BD_FHEPA2$pm1)))/578760))*100 # Theoretical missing fraction
+missPercBD_F2 <- round(missPercBD_F2,1)
+missPercBH_F2 <- (1-((length(c(BH_FHEPA2$pm1)))/578760))*100 # Theoretical missing fraction
+missPercBH_F2 <- round(missPercBH_F2,1)
+
+missPercCG_G2 <- (1-((length(c(CG_GHEPA2$pm1)))/578760))*100 # Theoretical missing fraction
+missPercCG_G2 <- round(missPercCG_G2,1)
+missPercCC_G2 <- (1-((length(c(CC_GHEPA2$pm1)))/578760))*100 # Theoretical missing fraction
+missPercCC_G2 <- round(missPercCC_G2,1)
+missPercCG_F2 <- (1-((length(c(CG_FHEPA2$pm1)))/578760))*100 # Theoretical missing fraction
+missPercCG_F2 <- round(missPercCG_F2,1)
+missPercCC_F2 <- (1-((length(c(CC_FHEPA2$pm1)))/578760))*100 # Theoretical missing fraction
+missPercCC_F2 <- round(missPercCC_F2,1)
+
+
+missPerc2 <- data.frame(
+  Sensor = c("Bay D Ward A","Bay D Ward B", "Bay H Ward A", "Bay H Ward B", "Corridor C&D Ward A","Corridor C&D Ward B", "Corridor G&H Ward A",  "Corridor G&H Ward B" ),
+  MissTotal = c(missPercBD_G2,missPercBD_F2,missPercBH_G2,missPercBH_F2,missPercCC_G2,missPercCC_F2,missPercCG_G2,missPercCC_F2)
+)
+```
+
+Similarly to the previous analysis we can then calculate the percentage of missing data from each sensor to allow a true matched comparison (Table [\@ref(tab:tBAYCOR2c)]{color="blue"} ).
+
+```{r tBAYCOR2c, eval=runtables}
+knitr::kable(
+  missPerc2,
+  col.names = c("Sensor location", "Total missing data from iaq2c HEPA period (%)"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Table showing percentages of missing data for sensors D and H from ward B and sensor C from Ward A. N.B. The No HEPA period for ward A follows the HEPA period hence why the percentage increases in the No-HEPA period."
+  )
+```
+```{r fBAYCOR2c, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Table showing percentages of missing data for sensors D and H from ward B and sensor C from Ward A. N.B. The No HEPA period for ward A follows the HEPA period hence why the percentage increases in the No-HEPA period."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fBAYCOR2c-1.png")
+```
+
+Now that we know where the missing data is we can then truly match the data by only selecting for data that is present for both sensors and plot this in `timeVariation()` as in Figure. [\@ref(fig:f108az)]{color="blue"} . This will remove any confounding from the natural variation in particulates over time that we have seen in previous chapters. 
+
+```{r f108a, eval = rungraphs2, fig.height=10, fig.width=10, fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show G6 and orange show F6 for the bay H sensors in the shared HEPA period March to October 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations.", cache=TRUE}
+timeVariation(
+iaq2cBH[iaq2cBH$sensLocHEPA=="BH_F+" |
+        iaq2cBH$sensLocHEPA=="BH_G+",],
+pollutant = "pm1",
+cols = c("orange","black"),
+normalise = FALSE,
+group = "sensLocHEPA",
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f108az,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "Variation of $PM_1$ concentrations ($\\mu$g per m$^3$) by hour of the day, day of the week, and month. Black lines show G6 and orange show F6 for the bay H sensors in the shared HEPA period March to October 2022. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f10.8-1.png")
+```
+
+The increased power of the units installed on F6 as described in Chapter [\@ref(AAirDS-C)]{color="blue"} are likely to have further reduced the particulates from those seen on G6 as shown in Figure. [\@ref(fig:f108az)]{color="blue"} . In order to confirm this we would require a `No HEPA` matched period for both the wards which is unlikely given the wider ACU HEPA deployment within CUH.
+
+Re-running the statistical tests gives us Table. [\@ref(tab:t108)]{color="blue"} .
+
+```{r eval=loadstats}
+G6BH <- iaq2cBH[iaq2cBH$sensLocHEPA=="BH_G+",]  # HEPA filters bay H G6 - fully matched
+
+F6BH <- iaq2cBH[iaq2c$sensLocHEPA=="BH_F+",] # HEPA filters bay H F6 - fully matched
+
+F6BH.stats <- describeBy(F6BH[,4:11])  # Descriptive stats for HEPA
+F6BH.stats <- round(F6BH.stats,4)
+G6BH.stats <- describeBy(G6BH[,4:11])  # Descriptive stats for no HEPA
+G6BH.stats <- round(G6BH.stats,4)
+wilresults4 <- sapply(c(4:11), function(i) {wilcox.test(G6BH[,i],F6BH[,i])}) # Independent MW-test
+wilres4 <- as.data.frame(t(wilresults4[3,])) # This selects just the p-values.
+pvalwil4 <- round(as.numeric(t(wilres4)),3)
+pvalwil1_4 <- if_else(pvalwil4<0.001, "<0.001","ns")
+
+ttresults4 <- sapply(c(4:11), function(i) {t.test(G6BH[,i],F6BH[,i], paired=FALSE)}) # Independent t-test
+# default is na.rm=TRUE
+ttres4 <- as.data.frame(
+  t(
+    ttresults4[3,])) # This selects just the p-values.
+pvaltt4 <- round(
+  as.numeric(
+    t(
+      ttres4)),3)
+pvaltt1_4 <- if_else(
+  pvaltt<0.001, 
+  "<0.001",
+  "ns")
+
+# Compile descriptive statistics results
+stats4 <- cbind.data.frame(
+  F6BH.stats[,2:4],
+  G6BH.stats[,2:4])
+stats4 <- round(stats3,2)
+stats.res4 <- cbind.data.frame(
+  stats4,
+  pvalwil1_4,
+  pvaltt1_4)
+colnames(stats.res4) <- c(
+  "F6 HEPA (n)",
+  "mean",
+  "SD",
+  "G6 HEPA (n)",
+  "mean",
+  "SD",
+  "p*",
+  "p**")
+```
+
+We can then use the `kable()` function again to display these results. Table [\@ref(tab:t103)]{color="blue"}  shows the total number (n), mean and standard deviation (SD) for both F6 and G6 in the `HEPA` state 25^th^ March - 12^th^ October 2022. 
+
+The two aforementioned statistical tests are used again to infer if there is a statistically significant difference between the Bay D and H sensors on ward F6 in the `HEPA` state versus those on G6 in the `HEPA` state.
+
+```{r t108b, eval=runtables}
+knitr::kable(
+  stats.res4,
+  format = "latex",
+  booktabs = TRUE,
+  caption = 'A table of summary statistics comparing the F6 and G6 bay H sensors both in the HEPA state for the fully matched period removing all data by date not gathered by both sensors. $*$ = Wilcoxon, $**$ = T-test'
+)
+```
+```{r f108b, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="A table of summary statistics comparing the F6 and G6 sensors both in the HEPA state. $*$ = Wilcoxon, $**$ = T-test"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f108z-1.png")
+```
+
+## CUSUM post HEPA removal from ward A - **C bay sensor**{#109}
+
+As can be seen from Figures [\@ref(fig:f106z)]{color="blue"} and [\@ref(fig:f107z)]{color="blue"} the CUSUM methodology identified the point at which the ACU system was installed from both sensor signals.
+
+Ideally we would use the reverse situation i.e. when the ACU HEPA system was removed to show the converse which occurred on the 12th October 2022. There was a gap covering the period 24th July 2022 to 24th November 2022 and the last recorded observation occurred on the 29-11-2022 at 23:59:49. With this much missing data spanning the period when the ACU system was removed it may not be possible to draw inferences from the CUSUM plot.
+
+```{r eval=loadstats}
+# CUSUM model
+sigBC_G <- c(BC_GHEPA$pm1,BC_GNoHEPA$pm1)
+sig1BC_GHEPA <- BC_GHEPA$pm1
+sig2BC_GNoHEPA <- BC_GNoHEPA$pm1
+## Compute mean difference
+mu <- mean(sigBC_G)   # This is the mean of the data.
+n <- length(sigBC_G)
+
+# Predeclarations
+# Create empty vectors containing just zeros.
+group <- numeric(length = n)
+x <- numeric(length = n)
+x_less_mu <- numeric(length = n)
+cusum <- numeric(length = n)
+
+for (i in 1:n){
+  x_less_mu[i] <- sigBC_G[i] - mu
+  if (i==1){
+    cusum[i]    <- x_less_mu[i]
+  } else {
+    cusum[i]    <- x_less_mu[i] + cusum[i-1]
+  }
+}
+
+# Compute range of CUSUM plot
+cusum.range <- max(cusum) - min(cusum)
+
+# Locate minimum and maximum values
+#min(cusum)
+#which(cusum == min(cusum))
+
+#max(cusum)
+#which(cusum == max(cusum))
+
+# Produce CUSUM chart
+#plot(cusum, ylim=c((min(cusum)-10),max(cusum)+10), ylab="CUSUM score", xlab="Epoch", type="l", col="blue")
+#abline(h=mu, lty=2)
+#abline(v=length(sig2), col="red", lty=2)
+#text(0,200000,label)
+```
+```{r f109, eval=rungraphs2, fig.width = 5, fig.height = 5, fig.cap="CUSUM plot overlaid with signal for $PM_1$ ($\\mu$g per m$^3$) for a sensor in bay C ward A. Smoothing spline applied; spar = 0.6"}
+#Produce smoothing spline
+x <- 1:length(sigBC_G)
+splinevect <- smooth.spline(x,sigBC_G, spar = 0.6)
+# Produce CUSUM chart with signal overlay
+plot(cusum, 
+     ylim=c((min(cusum)-10),
+            max(cusum)+1000),
+     ylab="CUSUM score", 
+     xlab="Epoch", 
+     type="l", 
+     col="blue") +
+  abline(h=mu, lty=2) +
+  #abline(v=length(sig1BC_GHEPA), col="red", lty=2) +
+  lines(sigBC_G*1000, type="l", ylab = "PM1") +
+  lines(splinevect, col="red", lwd=2) +
+  #abline(v=length(sig2BC_GNoHEPA ), lty=2, lwd=2, col="orange") +
+  abline(v=length(sig1BC_GHEPA), lty=2, lwd=2, col="orange") +
+  text(150000,-20000,"Bay C Ward A")
+```
+```{r f109z,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "CUSUM plot overlaid with signal for $PM_1$ ($\\mu$g per m$^3$) for a sensor in bay C ward A"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f109-1.png")
+```
+
+As you can see from this plot, as expected, the picture is less clear. This is likely due to the lack of data paricularly for the `No HEPA` period such that we cannot draw many conclusions regarding the effectiveness of the `HEPA` ACUs as shown by the effect on PM~1~ post removal of the ACU system from ward G6.
+
+## Evaluating the corridor sensors{#110}
+
+As described previously the locaion of the corridor sensors and layout of the corridor and non-bay ward space differ significantly between wards `F6` and `G6`. Becaus eof this we have thus far refrained from ding a pairwise analysis. The corridors are however linked to the bay spaces as there are no doors or other barriers separating them and we have already demonstrated aerosols can migrate freely from one bay to another [link](https://www.aairds.com/videos/v/john-mcenroe-does-voice-over-now-zpk5h-tc9nt-cjnae).
+
+We will compare like with like as in previous sections. We have 2 sensor pairs again that we can use. Corridor C&D (`CC_G`; `CC_F`) and F&G (`CG_G`; `CG_F`) sensors from both wards F6 and G6 are available with both `HEPA` and `No HEPA` data to analyse. We will begin by calculating the T and U statistics and p values for the T-Test and Wilcoxon rank sum test.
+
+## Descriptive statistics: `HEPA` vs `No HEPA` - Corridor Sensors{#111}
+
+```{r eval=loadstats}
+hepac <- iaq2d[iaq2d$sensLocHEPA=="CC_G+" |
+                iaq2d$sensLocHEPA=="CG_G+" |
+                iaq2d$sensLocHEPA=="CG_F+" |
+                iaq2d$sensLocHEPA=="CC_F+",]  # HEPA filters
+
+controlc <- iaq2d[iaq2d$sensLocHEPA=="CC_F-" |
+                   iaq2d$sensLocHEPA=="CG_F-" |
+                   iaq2d$sensLocHEPA=="CC_G-" |
+                   iaq2d$sensLocHEPA=="CG_G-",] # No HEPA filters
+
+hepa.statsc <- describeBy(hepac[,4:11])  # Descriptive stats for HEPA
+control.statsc <- describeBy(controlc[,4:11])  # Descriptive stats for no HEPA
+
+wilresultsc <- sapply(c(4:11), function(i) {wilcox.test(hepac[,i],controlc[,i])}) # Independent MW-test
+wilresc <- as.data.frame(t(wilresultsc[3,])) # This selects just the p-values.
+pvalwilc <- round(as.numeric(t(wilresc)),3)
+pvalwil1c <- if_else(pvalwilc<0.001, "<0.001","ns")
+
+ttresultsc <- sapply(c(4:11), function(i) {t.test(hepac[,i],controlc[,i], paired=FALSE)}) # Independent t-test
+# default is na.rm=TRUE
+ttresc <- as.data.frame(
+  t(
+    ttresultsc[3,])) # This selects just the p-values.
+pvalttc <- round(
+  as.numeric(
+    t(
+      ttresc)),3)
+pvaltt1c <- if_else(
+  pvalttc<0.001, 
+  "<0.001",
+  "ns")
+
+# Compile descriptive statistics results
+statsc <- cbind.data.frame(
+  control.statsc[,2:4],
+  hepa.statsc[,2:4])
+statsc <- round(statsc,2)
+stats.resc <- cbind.data.frame(
+  statsc,
+  pvalwil1c,
+  pvaltt1c)
+colnames(stats.resc) <- c(
+  "No HEPA (n)",
+  "mean",
+  "SD",
+  "HEPA (n)",
+  "mean",
+  "SD",
+  "p*",
+  "p**")
+```
+
+We can then use the `kable()` function in the `knitr` package to display these results. Table [\@ref(tab:t111)]{color="blue"} shows the total number (n), mean and standard deviation (SD) for both the `No HEPA` and 'HEPA` states. 
+
+The two aforementioned statistical tests are used to infer if there is a statistically significant difference between the Corridor C&D and G&H sensors on ward F6 (`No HEPA` and `HEPA`) versus those on G6 (`No HEPA` and `HEPA`).
+
+As you can see all of the tests produce a significant result deemed as a p-value of <0.001. 
+
+```{r t111, eval=runtables}
+knitr::kable(
+  stats.res,
+  format = "latex",
+  booktabs = TRUE,
+  caption = 'A table of summary statistics comparing the HEPA and No HEPA groups for the corridor sensors. $*$ = Wilcoxon, $**$ = T-test'
+)
+```
+```{r f111z, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="A table of summary statistics comparing the HEPA and No HEPA groups for the corridor sensors. $*$ = Wilcoxon, $**$ = T-test"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f111z-1.png")
+```
+
+In order to ensure these differrences are not due to confounding we will fist make an assessment of how much of the data is missing as this may lead to wrong inferences being made about between group (`HEPA` vs `No HEPA`) differences.
+
+## Missing Data - Sensors C&D & G&H on Wards F6 and G6
+
+We appear to have `HEPA` and `No HEPA` data for both the C&D and G&H sensors for both wards. 
+
+The percentages of data missing for each of these 4 sensors is shown in Table [\@ref(tab:tCCGFG)]{color="blue"} . As would be expected as seen before there is more data missing for the latest period as sensors went missing or were unplugged.
+
+```{r eval=loadstats}
+
+#Corridor C&D ; ) and F&G (; `CG_F`)
+missPercCC_G <- (1-((length(c(CC_GNoHEPA$pm1,CC_GHEPA$pm1)))/843840))*100 # Theoretical missing fraction
+missPercCC_G <- round(missPercCC_G,1)
+missPercCC_G_NoHEPA <- (1-((length(c(CC_GNoHEPA$pm1)))/135480))*100 # Theoretical missing fraction
+missPercCC_G_NoHEPA <- round(missPercCC_G_NoHEPA,1)
+missPercCC_G_HEPA <- (1-((length(c(CC_GHEPA$pm1)))/708360))*100 # Theoretical missing fraction
+missPercCC_G_HEPA <- round(missPercCC_G_HEPA,1)
+
+missPercCC_F <- (1-((length(c(CC_FNoHEPA$pm1,CC_FHEPA$pm1)))/843840))*100 # Theoretical missing fraction
+missPercCC_F <- round(missPercCC_F,1)
+missPercCC_F_NoHEPA <- (1-((length(c(CC_FNoHEPA$pm1)))/126720))*100 # Theoretical missing fraction
+missPercCC_F_NoHEPA <- round(missPercCC_F_NoHEPA,1)
+missPercCC_F_HEPA <- (1-((length(c(CC_FHEPA$pm1)))/717120))*100 # Theoretical missing fraction
+missPercCC_F_HEPA <- round(missPercCC_F_HEPA,1)
+  
+missPercCG_G <- (1-((length(c(CG_GNoHEPA$pm1,CG_GHEPA$pm1)))/843840))*100 # Theoretical missing fraction
+missPercCG_G <- round(missPercCG_G,1)
+missPercCG_G_NoHEPA <- (1-((length(c(CG_GNoHEPA$pm1)))/126720))*100 # Theoretical missing fraction
+missPercCG_G_NoHEPA <- round(missPercCG_G_NoHEPA,1)
+missPercCG_G_HEPA <- (1-((length(c(CG_GHEPA$pm1)))/717120))*100 # Theoretical missing fraction
+missPercCG_G_HEPA <- round(missPercCG_G_HEPA,1)
+
+missPercCG_F <- (1-((length(c(CG_FNoHEPA$pm1,CG_FHEPA$pm1)))/843840))*100 # Theoretical missing fraction
+missPercCG_F <- round(missPercCG_F,1)
+missPercCG_F_NoHEPA <- (1-((length(c(CG_FNoHEPA$pm1)))/126720))*100 # Theoretical missing fraction
+missPercCG_F_NoHEPA <- round(missPercCG_F_NoHEPA,1)
+missPercCG_F_HEPA <- (1-((length(c(CG_FHEPA$pm1)))/717120))*100 # Theoretical missing fraction
+missPercCG_F_HEPA <- round(missPercCG_F_HEPA,1)
+
+missPercC <- data.frame(
+  Sensor = c("Corridor C&D Ward B", "Corridor G&H Ward B", "Corridor C&D Ward A", "Corridor G&H Ward A"),
+  MissTotal = c(missPercCC_F, missPercCG_F, missPercCC_G, missPercCG_G),
+  MissNoHEPA = c(missPercCC_F_NoHEPA, missPercCG_F_NoHEPA, missPercCC_G_NoHEPA, missPercCG_G_NoHEPA),
+  MissHEPA = c(missPercCC_F_HEPA, missPercCG_F_HEPA, missPercCC_G_HEPA, missPercCG_G_HEPA)
+)
+```
+
+```{r CCF, eval=loadstats}
+#Compile vectors for longitudinal analysis for Corridor C&D sensor in F6 
+
+sigCC_F <- c(CC_FHEPA$pm1,CC_FNoHEPA$pm1) # Combined longitudinally
+sensdatCC_F <- rbind.data.frame(CC_FHEPA,CC_FNoHEPA) # Combined vertically
+
+# Compute location of missing data
+missLocCC_F <- diff(as.numeric(sensdatCC_F$date))
+qCC_F <- which(missLocCC_F>3600) # These are the numerical loactions
+gapStartCC_F <- sensdatCC_F$date[qCC_F] # These are date stamps for the start of the gap (missing data)
+gapStopCC_F <- sensdatCC_F$date[qCC_F+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeCC_F <- as.numeric(gapStopCC_F) - as.numeric(gapStartCC_F)
+gapSizeCC_F <- (gapSizeCC_F/3600) # These are the size of the gaps in hours
+gapSizeCC_F <- round(gapSizeCC_F,1)
+nmissCC_F <- gapSizeCC_F*120
+wCC_F <- floor(nmissCC_F) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocCC_F <- qCC_F
+gapWidthCC_F <- wCC_F
+gapStartCC_F <- as.character(gapStartCC_F, "%d-%m-%Y %H:%M:%S")
+gapStopCC_F <- as.character(gapStopCC_F, "%d-%m-%Y %H:%M:%S")
+missResultsCC_F <- cbind.data.frame(gapStartCC_F, gapStopCC_F, gapSizeCC_F, gapWidthCC_F)
+missResultsCC_F <- adorn_totals(missResultsCC_F, where = "row")
+```
+```{r tCCF, eval=runtables}
+knitr::kable(
+  missResultsCC_F,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for corridor C and D ward B sensors"
+  )
+```
+```{r fCCF, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for corridor C and D ward B sensors"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fCC_F-1.png")
+```
+
+```{r CGF, eval=loadstats}
+#Compile vectors for longitudinal analysis for Corridor G&H sensor in F6 
+
+sigCG_F <- c(CG_FHEPA$pm1,CG_FNoHEPA$pm1) # Combined longitudinally
+sensdatCG_F <- rbind.data.frame(CG_FHEPA,CG_FNoHEPA) # Combined vertically
+
+# Compute location of missing data
+missLocCG_F <- diff(as.numeric(sensdatCG_F$date))
+qCG_F <- which(missLocCG_F>3600) # These are the numerical loactions
+gapStartCG_F <- sensdatCG_F$date[qCG_F] # These are date stamps for the start of the gap (missing data)
+gapStopCG_F <- sensdatCG_F$date[qCG_F+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeCG_F <- as.numeric(gapStopCG_F) - as.numeric(gapStartCG_F)
+gapSizeCG_F <- (gapSizeCG_F/3600) # These are the size of the gaps in hours
+gapSizeCG_F <- round(gapSizeCG_F,1)
+nmissCG_F <- gapSizeCG_F*120
+wCG_F <- floor(nmissCG_F) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocCG_F <- qCG_F
+gapWidthCG_F <- wCG_F
+gapStartCG_F <- as.character(gapStartCG_F, "%d-%m-%Y %H:%M:%S")
+gapStopCG_F <- as.character(gapStopCG_F, "%d-%m-%Y %H:%M:%S")
+missResultsCG_F <- cbind.data.frame(gapStartCG_F, gapStopCG_F, gapSizeCG_F, gapWidthCG_F)
+missResultsCG_F <- adorn_totals(missResultsCG_F, where = "row")
+```
+```{r tCGF, eval=runtables}
+knitr::kable(
+  missResultsCG_F,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for corridor G and H ward B sensors"
+  )
+```
+```{r fCGF, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for corridor G and H ward B sensors"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fCG_F-1.png")
+```
+
+```{r CCG, eval=loadstats}
+#Compile vectors for longitudinal analysis for Corridor C&D sensor in G6 
+
+sigCC_G <- c(CC_GHEPA$pm1,CC_GNoHEPA$pm1) # Combined longitudinally
+sensdatCC_G <- rbind.data.frame(CC_GHEPA,CC_GNoHEPA) # Combined vertically
+
+# Compute location of missing data
+missLocCC_G <- diff(as.numeric(sensdatCC_G$date))
+qCC_G <- which(missLocCC_G>3600) # These are the numerical loactions
+gapStartCC_G <- sensdatCC_G$date[qCC_G] # These are date stamps for the start of the gap (missing data)
+gapStopCC_G <- sensdatCC_G$date[qCC_G+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeCC_G <- as.numeric(gapStopCC_G) - as.numeric(gapStartCC_G)
+gapSizeCC_G <- (gapSizeCC_G/3600) # These are the size of the gaps in hours
+gapSizeCC_G <- round(gapSizeCC_G,1)
+nmissCC_G <- gapSizeCC_G*120
+wCC_G <- floor(nmissCC_G) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocCC_G <- qCC_G
+gapWidthCC_G <- wCC_G
+gapStartCC_G <- as.character(gapStartCC_G, "%d-%m-%Y %H:%M:%S")
+gapStopCC_G <- as.character(gapStopCC_G, "%d-%m-%Y %H:%M:%S")
+missResultsCC_G <- cbind.data.frame(gapStartCC_G, gapStopCC_G, gapSizeCC_G, gapWidthCC_G)
+missResultsCC_G <- adorn_totals(missResultsCC_G, where = "row")
+```
+```{r tCCG, eval=runtables}
+knitr::kable(
+  missResultsCC_G,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for corridor C and D ward A sensors"
+  )
+```
+```{r fCCG, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for corridor C and D ward A sensors"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fCC_G-1.png")
+```
+
+```{r CGG, eval=loadstats}
+#Compile vectors for longitudinal analysis for Corridor G&H sensor in G6 
+
+sigCG_G <- c(CG_GHEPA$pm1,CG_GNoHEPA$pm1) # Combined longitudinally
+sensdatCG_G <- rbind.data.frame(CG_GHEPA,CG_GNoHEPA) # Combined vertically
+
+# Compute location of missing data
+missLocCG_G <- diff(as.numeric(sensdatCG_G$date))
+qCG_G <- which(missLocCG_G>3600) # These are the numerical loactions
+gapStartCG_G <- sensdatCG_G$date[qCG_G] # These are date stamps for the start of the gap (missing data)
+gapStopCG_G <- sensdatCG_G$date[qCG_G+1]  # These are date stamps for the stop of the gap (missing data)
+gapSizeCG_G <- as.numeric(gapStopCG_G) - as.numeric(gapStartCG_G)
+gapSizeCG_G <- (gapSizeCG_G/3600) # These are the size of the gaps in hours
+gapSizeCG_G <- round(gapSizeCG_G,1)
+nmissCG_G <- gapSizeCG_G*120
+wCG_G <- floor(nmissCG_G) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLocCG_G <- qCG_G
+gapWidthCG_G <- wCG_G
+gapStartCG_G <- as.character(gapStartCG_G, "%d-%m-%Y %H:%M:%S")
+gapStopCG_G <- as.character(gapStopCG_G, "%d-%m-%Y %H:%M:%S")
+missResultsCG_G <- cbind.data.frame(gapStartCG_G, gapStopCG_G, gapSizeCG_G, gapWidthCG_G)
+missResultsCG_G <- adorn_totals(missResultsCG_G, where = "row")
+```
+```{r tCGG, eval=runtables}
+knitr::kable(
+  missResultsCG_G,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Missing data for corridor G and H ward A sensors"
+  )
+```
+```{r fCGG, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Missing data for corridor G and H ward A sensors"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fCG_G-1.png")
+```
+
+```{r tCCGFG, eval=runtables}
+knitr::kable(
+  missPercC,
+  col.names = c("Sensor location", "Total missing data (%)", "No HEPA missing data (%)", "HEPA missing data (%)"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Table showing percentages of missing data for sensors C and D and G and H from ward A and B. N.B. The HEPA period for ward B follows the No HEPA period hence why the missing percentage increases."
+  )
+```
+```{r fCCGFGz, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="Table showing percentages of missing data for sensors C and D and G and H from ward A and B. N.B. The HEPA period for ward B follows the No HEPA period hence why the missing percentage increases."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/fCCGFGz-1.png")
+```
+
+## iaq2aBH descriptive statistics{#iaq2BH}
+
+In the particulates chapter ([\@ref(iaq2aBHplots)]{color="blue"}) we looked at the Bay H sensor in the first matched period. Were these results statistically significantly different?
+
+```{r eval=loadstats}
+
+hepaiaq2aBH <- iaq2aBHmatched[iaq2aBHmatched$sensLocHEPA=="BH_G+",]  # HEPA filters
+
+controliaq2aBH <- iaq2aBHmatched[iaq2aBHmatched$sensLocHEPA=="BH_F-",] # No HEPA filters
+
+hepa.statsiaq2aBH <- describeBy(hepaiaq2aBH[,4:11])  # Descriptive stats for HEPA
+control.statsiaq2aBH <- describeBy(controliaq2aBH[,4:11])  # Descriptive stats for no HEPA
+
+wilresultsiaq2aBH <- sapply(c(4:11), function(i) {wilcox.test(hepaiaq2aBH[,i],controliaq2aBH[,i])}) # Independent MW-test
+wilresiaq2aBH <- as.data.frame(t(wilresultsiaq2aBH[3,])) # This selects just the p-values.
+pvalwiliaq2aBH <- round(as.numeric(t(wilresiaq2aBH)),3)
+pvalwil1iaq2aBH <- if_else(pvalwiliaq2aBH<0.001, "<0.001","ns")
+
+ttresultsiaq2aBH <- sapply(c(4:11), function(i) {t.test(hepaiaq2aBH[,i],controliaq2aBH[,i], paired=FALSE)}) # Independent t-test
+# default is na.rm=TRUE
+ttresiaq2aBH <- as.data.frame(
+  t(
+    ttresultsiaq2aBH[3,])) # This selects just the p-values.
+pvalttiaq2aBH <- round(
+  as.numeric(
+    t(
+      ttresiaq2aBH)),3)
+pvaltt1iaq2aBH <- if_else(
+  pvalttiaq2aBH<0.001, 
+  "<0.001",
+  "ns")
+
+# Compile descriptive statistics results
+statsiaq2aBH <- cbind.data.frame(
+  control.statsiaq2aBH[,2:4],
+  hepa.statsiaq2aBH[,2:4])
+statsiaq2aBH <- round(statsiaq2aBH,2)
+stats.resiaq2aBH <- cbind.data.frame(
+  statsiaq2aBH,
+  pvalwil1iaq2aBH,
+  pvaltt1iaq2aBH)
+colnames(stats.resiaq2aBH) <- c(
+  "No HEPA (n)",
+  "mean",
+  "SD",
+  "HEPA (n)",
+  "mean",
+  "SD",
+  "p*",
+  "p**")
+```
+
+We can then use the `kable()` function in the `knitr` package to display these results. Table [\@ref(tab:t103)]{color="blue"}  shows the total number (n), mean and standard deviation (SD) for both the `No HEPA` and 'HEPA` states. 
+
+The two aforementioned statistical tests are used to infer if there is a statistically significant difference between the Bay D and H sensors on ward F6 (No HEPA) versus those on G6 (HEPA).
+
+As you can see all of the tests produce a significant result deemed as a p-value of <0.001. 
+
+There is therefore a suggestion that the ACUs installed on G6 or an intrinsic differrence on G6 itself had an effect on all parameters; PM~1~, PM~2.5~, PM~4~, PM~10~, temperature, humidity, air pressure and carbon dioxide. Given the wards  have differing orientations and other underlying characteristics such as differences in background mechanical ventilation these differrence may not necessarily wholly be due to the ACUs. In Chapter [\@ref(107)]{color="blue"} we will compare the two wards using `iaq2c` when both wards had ACUs installed to examine any baseline differences in the wards.
+
+```{r t112, eval=runtables}
+knitr::kable(
+  stats.resiaq2aBH,
+  format = "latex",
+  booktabs = TRUE,
+  caption = 'A table of summary statistics comparing the HEPA and No HEPA groups for Bay H sensors fully matched - February to March 2022. $*$ = Wilcoxon, $**$ = T-test'
+)
+```
+```{r f112, eval=tablesAspictures, echo=FALSE, out.width="100%", fig.cap="A table of summary statistics comparing the HEPA and No HEPA groups. $*$ = Wilcoxon, $**$ = T-test"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f103z-1.png")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r eval=FALSE}
+# Plot CUSUM using 'strucchange'
+library(strucchange)
+#ocus.gd <- efp(sig ~ 1, type = "RE")
+#ocus.gd <- efp(sig ~ 1, type = "Score-CUSUM")
+ocus.gd <- efp(sig ~ 1, type = "OLS-CUSUM")
+#ocus.gd <- efp(sig ~ 1, type = "Rec-CUSUM")
+sctest(ocus.gd)
+sctest(ocus.gd, type = "expF")
+
+plot(ocus.gd)
+plot(ocus.gd, alpha = 0.05, alt.boundary = TRUE)
+
+# Create boxplots and perform Mann-Whitney U test.
+dat <- rbind.data.frame(sens1,sens2)
+head(dat)
+tail(dat)
+
+# Creating a small dataset
+outcome = sig
+SensorID = dat$sensID
+Date <- dat$date
+Status = dat$HEPA
+DATASET <- data.frame(SensorID, Date, Status, outcome, stringsAsFactors = TRUE)
+
+# printing the dataframe
+head(DATASET)
+tail(DATASET)
+
+# Summary of the data
+
+# loading the package
+library(dplyr)
+group_by(DATASET,Status) %>%
+  summarise(
+    count = n(),
+    Mean = mean(outcome, na.rm = TRUE),
+    Median = median(outcome, na.rm = TRUE),
+    IQR = IQR(outcome, na.rm = TRUE))
+
+# loading package for boxplot
+library("ggpubr")
+ggboxplot(DATASET, x = "Status", y = "outcome",
+          color = "Status", palette = c("red", "black"),
+          ylab = "PM1", xlab = "Status",
+          ylim =c(0,50))
+
+# Mann Whitney U Test
+mw_res <- wilcox.test(outcome ~ Status, data = DATASET, exact = FALSE)
+mw_res
+
+####
+####
+
+# Produce distribution and violin plots
+library(ggplot2)
+
+# Plot distribution density
+ggplot(DATASET, aes(x=outcome, color=Status, linetype=Status)) +
+  labs(x="PM1 (µg/m3)") +
+  scale_x_log10(limits=c(0.0001,5539),
+                breaks=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,1000,5000)) +
+  geom_density(bw=.0000001)
+
+# Violin plot
+ggplot(data = DATASET, aes(x=Status, y=outcome)) +
+  geom_boxplot(notch = TRUE,
+               outlier.shape=NA,
+               fill="green",
+               width=0.1) +
+  geom_violin(fill="gold",
+              alpha=0.3) +
+  labs(y="PM1 (µg/m3)") +
+  scale_y_log10(limits=c(0.0001,100),
+                breaks=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100)) #+
+#ylim(0, 12)
+
+####
+####
+
+# Calculate number of extreme spike events
+
+# Specify high count threshold
+hcth <- 20
+
+# Create two empty matrices
+nohepaHC <- matrix(0,length(sig1),2)
+nohepaHC[,1] <- sig1
+hepaHC <- matrix(0,length(sig2),2)
+hepaHC[,1] <- sig2
+
+# Populate results matrices
+for(i in 1:length(sig1)){
+  if(nohepaHC[i,1]>hcth){nohepaHC[i,2]<-1}
+}
+
+for(i in 1:length(sig2)){
+  if(hepaHC[i,1]>hcth){hepaHC[i,2]<-1}
+}
+
+# Compile results
+
+# No HEPA
+(nnohepaHC <- nrow(nohepaHC))
+mean(nohepaHC[,1])
+median(nohepaHC[,1])
+sd(nohepaHC[,1])
+(nHC.nohepa <- sum(nohepaHC[,2]))
+(nohepaFrac <- nHC.nohepa/nnohepaHC)
+
+# HEPA
+(nhepaHC <- nrow(hepaHC))
+mean(hepaHC[,1])
+median(hepaHC[,1])
+sd(hepaHC[,1])
+(nHC.hepa <- sum(hepaHC[,2]))
+(hepaFrac <- nHC.hepa/nhepaHC)
+
+# Chi square test
+# Create a simple [2 x 2] table of frequency data
+A = as.table(rbind(c(nHC.nohepa, (nnohepaHC-nHC.nohepa)), c(nHC.hepa, (nhepaHC-nHC.hepa))))
+dimnames(A) = list(Status = c("No HEPA", "HEPA"),
+                   Outcome = c("High Count","Low Count"))
+(chsqA = chisq.test(A))  # This displays the test summary
+chsqA$observed   # Observed counts
+chsqA$expected   # Expected counts assuming the null hypothesis is true.
+chsqA$residuals  # Pearson residuals
+chsqA$stdres     # Standardized residuals
+chsqA$p.value    # p value
+
+####
+####
+
+
+
+
+
+# Create snippets of data from each sensor for the matched period.
+library(openair)
+snipD2 <- selectByDate(sensdatD2, start = "13/10/2022", end = "29/11/2022") # No HEPA
+snipC2 <- selectByDate(sensdatC2, start = "13/10/2022", end = "29/11/2022") # No HEPA
+snipA2 <- selectByDate(sensdatA2, start = "13/10/2022", end = "29/11/2022") # No HEPA
+
+# Matched period with HEPA
+snipG1 <- selectByDate(sensdatG1, start = "13/10/2022", end = "29/11/2022") # HEPA
+snipH1 <- selectByDate(sensdatH1, start = "13/10/2022", end = "29/11/2022") # HEPA
+snipI1 <- selectByDate(sensdatI1, start = "13/10/2022", end = "29/11/2022") # HEPA
+snipJ1 <- selectByDate(sensdatJ1, start = "13/10/2022", end = "29/11/2022") # HEPA
+
+# View sample of data
+head(snipG1)
+tail(snipG1)
+
+# Save snip as CSV file
+#write.csv(snipA1, "~/Addenbrookes/AAirDS_snipA1.csv") # Save file
+
+####
+####
+
+# Evaluate each snip for missing data, stationarity, etc.
+
+# Perform the ADF test to evaluate whether on not the PM1 signals are stationary.
+library(tseries)
+adf.test(snipG1$pm1)  # HEPA snip - stationary
+adf.test(snipH1$pm1)  # HEPA snip - stationary
+adf.test(snipI1$pm1)  # HEPA snip - stationary
+adf.test(snipJ1$pm1)  # HEPA snip - stationary
+adf.test(snipA2$pm1)  # No HEPA snip - not stationary (but close)
+adf.test(snipC2$pm1)  # No HEPA snip - stationary
+adf.test(snipD2$pm1)  # No HEPA snip - stationary
+
+# Compute theoretical length of full data set
+all_dates = seq(from = as.Date("2022-10-13"), to =  as.Date("2022-11-29"), by = "day")
+all_dates
+ndays <- length(all_dates)
+ndata <- ndays*24*60*2
+ndata
+
+# Compute fraction of data missing
+sniprefs <- c("G1","H1","I1","J1","A2","C2","D2")
+sniprefs
+
+# Quantify theoretical fraction of missing data
+snipmetrics <- matrix(0,length(sniprefs),4)
+snipmetrics[,1] <- sniprefs
+snipnames <- matrix(0,length(sniprefs),1) # Creates empty vector to store names
+
+for(i in 1:length(sniprefs)){
+  snipdat <- get(paste0("snip",sniprefs[i])) # This selects dataframe for analysis.
+  nsnip <- nrow(snipdat)
+  nmiss <- ndata - nsnip # Theoretical number missing data points
+  missFrac <- 1-(nsnip/ndata)
+  snipmetrics[i,2] <-nsnip
+  snipmetrics[i,3] <-nmiss
+  snipmetrics[i,4] <-round(missFrac,4)
+}
+
+colnames(snipmetrics) <- c("SnipID","Observations","Missing","MissingFrac")
+snipmetrics <- as.data.frame(snipmetrics)
+snipmetrics
+
+####
+####
+
+# Identify where data is missing
+
+# Specify snip to be analysed
+snip <- snipC2
+head(snip)
+tail(snip)
+
+# Compute location of missing data
+missLoc <- diff(as.numeric(snip$date))
+(q <- which(missLoc >60)) # These are the numerical loactions
+(gapStart <- snip$date[q]) # These are date stamps for the start of the gap (missing data)
+(gapStop <- snip$date[q+1])  # These are date stamps for the stop of the gap (missing data)
+(gapSize <- as.numeric(gapStop) - as.numeric(gapStart)) # These are the numerical size of the gaps
+(nmiss <- gapSize/30)
+(w <- floor(nmiss)) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+gapLoc <- q
+gapWidth <- w
+missResults <- tibble(gapStart, gapStop, gapLoc, gapSize, gapWidth)
+missResults
+
+# Check feature
+b <- 7899
+snip[(b-5):(b+5),] # Views the region of interest
+
+####
+####
+
+# Compile vectors for matched periods
+sens1 <- rbind.data.frame(snipG1,snipH1,snipI1,snipJ1) # HEPA
+sens2 <- rbind.data.frame(snipA2,snipC2,snipD2) # No HEPA
+#sens2 <- rbind.data.frame(snipC2,snipD2) # No HEPA
+
+head(sens1)
+head(sens2)
+
+# Select sensor signal for analysis. (NB. This can be either pm1, pm2_5, pm4, or pm10.)
+sig1 <- sens1$pm1
+sig2 <- sens2$pm1
+sig <- c(sig1,sig2) # Combined longitudinally
+
+# Compute smoothing spline
+x <- 1:length(sig)
+splinevect <- smooth.spline(x,sig, spar = 0.2)
+
+a <- length(snipG1$pm1)
+b <- length(snipH1$pm1)
+c <- length(snipI1$pm1)
+d <- length(snipJ1$pm1)
+e <- length(snipA2$pm1)
+g <- length(snipC2$pm1)
+h <- length(snipD2$pm1)
+
+# Plot data sequentially
+plot(sig, type="l", ylim = c(0,50), ylab = "PM1")
+lines(splinevect, col="red", lwd=2)
+abline(v=length(sig1), lty=2, lwd=2, col="blue")
+abline(v=(a), lty=2, lwd=2, col="Yellow")
+abline(v=(a+b), lty=2, lwd=2, col="Yellow")
+abline(v=(a+b+c), lty=2, lwd=2, col="Yellow")
+abline(v=(length(sig1)+e), lty=2, lwd=2, col="Yellow")
+abline(v=(length(sig1)+e+g), lty=2, lwd=2, col="Yellow")
+abline(v=(length(sig1)+e+g+h), lty=2, lwd=2, col="Yellow")
+abline(v=(length(sig1)+e+g+h), lty=2, lwd=2, col="Yellow")
+abline(v=(length(sig1)+e+g+h), lty=2, lwd=2, col="Yellow")
+text(60000,50,"HEPA")
+text(length(sig1)+80000,50,"No HEPA")
+
+####
+####
+
+# Create boxplots and perform Mann-Whitney U test.
+dat <- rbind.data.frame(sens1,sens2)
+head(dat)
+tail(dat)
+
+# Creating a small dataset
+outcome = sig
+SensorID = dat$sensID
+Date <- dat$date
+Status = dat$HEPA
+DATASET <- data.frame(SensorID, Date, Status, outcome, stringsAsFactors = TRUE)
+
+# printing the dataframe
+head(DATASET)
+tail(DATASET)
+
+# Summary of the data
+
+# loading the package
+library(dplyr)
+group_by(DATASET,Status) %>%
+  summarise(
+    count = n(),
+    Mean = mean(outcome, na.rm = TRUE),
+    Median = median(outcome, na.rm = TRUE),
+    IQR = IQR(outcome, na.rm = TRUE))
+
+# loading package for boxplot
+library("ggpubr")
+ggboxplot(DATASET, x = "Status", y = "outcome",
+          color = "Status", palette = c("red", "black"),
+          ylab = "PM1", xlab = "Status",
+          ylim =c(0,50))
+
+# Mann Whitney U Test
+mw_res <- wilcox.test(outcome ~ Status, data = DATASET, exact = FALSE)
+mw_res
+
+####
+####
+
+# Produce distribution and violin plots
+library(ggplot2)
+
+# Plot distribution density
+ggplot(DATASET, aes(x=outcome, color=Status, linetype=Status)) +
+  labs(x="PM1 (µg/m3)") +
+  scale_x_log10(limits=c(0.0001,5539),
+                breaks=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,1000,5000)) +
+  geom_density(bw=.0000001)
+
+# Violin plot
+ggplot(data = DATASET, aes(x=Status, y=outcome)) +
+  geom_boxplot(notch = TRUE,
+               outlier.shape=NA,
+               fill="green",
+               width=0.1) +
+  geom_violin(fill="gold",
+              alpha=0.3) +
+  labs(y="PM1 (µg/m3)") +
+  scale_y_log10(limits=c(0.0001,100),
+                breaks=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100)) #+
+#ylim(0, 12)
+
+####
+####
+
+# Calculate number of extreme spike events
+
+# Specify high count threshold
+hcth <- 20
+
+# Create two empty matrices
+nohepaHC <- matrix(0,length(sig1),2)
+nohepaHC[,1] <- sig1
+hepaHC <- matrix(0,length(sig2),2)
+hepaHC[,1] <- sig2
+
+# Populate results matrices
+for(i in 1:length(sig1)){
+  if(nohepaHC[i,1]>hcth){nohepaHC[i,2]<-1}
+}
+
+for(i in 1:length(sig2)){
+  if(hepaHC[i,1]>hcth){hepaHC[i,2]<-1}
+}
+
+# Compile results
+
+# No HEPA
+(nnohepaHC <- nrow(nohepaHC))
+mean(nohepaHC[,1])
+median(nohepaHC[,1])
+sd(nohepaHC[,1])
+(nHC.nohepa <- sum(nohepaHC[,2]))
+(nohepaFrac <- nHC.nohepa/nnohepaHC)
+
+# HEPA
+(nhepaHC <- nrow(hepaHC))
+mean(hepaHC[,1])
+median(hepaHC[,1])
+sd(hepaHC[,1])
+(nHC.hepa <- sum(hepaHC[,2]))
+(hepaFrac <- nHC.hepa/nhepaHC)
+
+# Chi square test
+# Create a simple [2 x 2] table of frequency data
+A = as.table(rbind(c(nHC.nohepa, (nnohepaHC-nHC.nohepa)), c(nHC.hepa, (nhepaHC-nHC.hepa))))
+dimnames(A) = list(Status = c("No HEPA", "HEPA"),
+                   Outcome = c("High Count","Low Count"))
+(chsqA = chisq.test(A))  # This displays the test summary
+chsqA$observed   # Observed counts
+chsqA$expected   # Expected counts assuming the null hypothesis is true.
+chsqA$residuals  # Pearson residuals
+chsqA$stdres     # Standardized residuals
+chsqA$p.value    # p value
+
+####
+####
+
+####
+####
+
+# Change point analysis
+
+# Create time series object
+sigts <- ts(sig)  # Create a time series object for use with some techniques
+
+# Using the 'changpoint' library
+library("changepoint")
+#m.pelt <- cpt.mean(sig, method = "PELT", penalty="Asymptotic", pen.value=0.05)
+#m.pelt <- cpt.mean(sig, method = "PELT", penalty="AIC")
+m.pelt <- cpt.mean(sigts, method = "PELT", penalty="BIC") # Best
+#m.pelt <- cpt.meanvar(sig, method = "PELT", penalty="AIC")
+#m.pelt <- cpt.meanvar(sig, method = "PELT", penalty="BIC")
+#m.pelt <- cpt.meanvar(sig, method = "PELT")
+#m.pelt <- cpt.var(sig, method = "PELT", penalty="AIC")
+m.pelt
+plot(m.pelt, type = "l", cpt.col = "blue", xlab = "Epoch", ylab = "PM1 (ppm)", cpt.width = 4)
+legend(1200, 15, c("PM1 signal","PM1 interrupted means"), cex=0.8, col=c("black","blue"), lty=1, bty = "n")
+
+cpts(m.pelt)
+```
+

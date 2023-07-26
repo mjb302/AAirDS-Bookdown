@@ -1,0 +1,1133 @@
+# **Data management - `Python`**{#3a}
+
+Intervention wards A, B & Control ward X - January to November 2022  
+
+## Original data in `python` and `RStudio`{#1}  
+
+The code used to pull these files together was executed in `python` as follows:  
+
+### Install required packages in `python`{#11}  
+
+> `PANDAS`, `OS`, `MATPLOTLIB`, `Seaborn` & `JSON`  
+
+```{python  eval=FALSE, echo=TRUE}
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+import pandas as pd
+import os
+import matplotlib.pyplot as plt
+import seaborn as sns
+import json
+```
+  
+### Read in all data files in `python`{#13}  
+
+Read in the original `JSON` files as this ensures that nothing has been modified. For each of the known folders, loop through each one. If the file ends with `.txt`, then we will read its contents and parse as a `JSON`, to get it into the correct format for python. This is necessary so that we may use it to generate a dataframe.
+  
+```{python eval=FALSE, echo=TRUE}
+res_list = []
+
+for folder_name in [
+  'C2_2', 
+  '11217104', 
+  'H5', 
+  'NurseSE', 
+  'D6', 
+  'H4', 
+  'outside', 
+  'DoubleDNrKitchen', 
+  'D5', 
+  'ReceptionG6', 
+  'C2']:
+
+    input_dir = os.path.join(
+      r'https://mjb302.github.io/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/files/sdcards', folder_name)
+    for file in os.listdir(input_dir):
+        if file.endswith('.txt'):
+            with open(os.path.join(input_dir, file)) as input_file:
+                for line in input_file:
+                    data = json.loads(line)
+                    res_list.append(data)
+    print(folder_name)
+```
+
+### Read in the lookup / metadata table for HEPA `date` ranges in `python`{#12}  
+
+We will use this later to set the `HEPA` flags. Create a dummy end date if nothing present.  
+
+```{python eval=FALSE, echo=TRUE}
+df_lookup = pd.read_csv(
+  '/Users/mattbutler/Desktop/COVID-19/IAQ data/IAQ/unitHepa.txt', 
+  sep='\t', 
+  keep_default_na=False)
+
+def set_hepastop(text):
+    if len(text) == 0:
+        return '31/03/2023 16:00'
+    else:
+        return text
+
+df_lookup['hepaStop'] = df_lookup['hepaStop'].apply(set_hepastop)
+
+df_lookup['hepaStart'] = pd.to_datetime(df_lookup['hepaStart'], format="%d/%m/%Y %H:%M")
+df_lookup['hepaStop'] = pd.to_datetime(df_lookup['hepaStop'], format="%d/%m/%Y %H:%M")
+
+df_lookup
+```  
+
+### Creating the new dataframe in `python`{#14}  
+
+With our list of `JSON` objects, we will use it to create a `dataframe` and show its size & shape:
+  
+```{python eval=FALSE, echo=TRUE}
+df = pd.DataFrame(res_list)
+print('Size of dataframe: ', df.shape)
+```
+  
+and then its headers:
+  
+```{python eval=FALSE, echo=TRUE}
+df.head()
+```
+  
+### Initial data mangement in `python`{#15}  
+
+#### `time` variable recorded in `date` format in `python`{#151}  
+
+Making sure the datetime in the `time` variable is in the `datetime` data format and not as a `string`.
+  
+```{python eval=FALSE, echo=TRUE}
+df['time'] = pd.to_datetime(df['time'])
+```
+  
+#### Particulate bin transformation in `python`{#152}  
+
+  
+> Currently the particulate data is stored as <1um, <2.5um, <4um & <10um. This needs to be changed to <1um, 1<2.5um, 2.5<4um & 4<10um bins.
+  
+```{python eval=FALSE, echo=TRUE}
+df['pm10'] = df['pm10'] - df['pm4']
+df['pm4'] = df['pm4'] - df['pm2_5']
+df['pm2_5'] = df['pm2_5'] - df['pm1']
+```
+  
+#### Create a new vector showing `HEPA` On or Off state in `python`{#153}  
+
+Create a new `HEPA` column and set the value to 0. We iterate through the rows in the 'lookup' dataframe, and drop them into our measurements dataframe. The value in `HEPA` will be set to 1 if the conditions are met.
+  
+```{python eval=FALSE, echo=TRUE}
+df['HEPA'] = 'No HEPA'
+
+for index, row in df_lookup.iterrows():
+    df.loc[(df['unit'] == row['unit']) & 
+    (df['time'] >= row['hepaStart']) & 
+    (df['time'] <= row['hepaStop']), 
+    'HEPA'] = 'HEPA'
+```
+  
+### Export dataframe as `.csv` in `python`{#16}  
+
+Save data table as a `.csv` file for export in `/directory/file.csv`
+  
+```{python eval=FALSE, echo=TRUE}
+df.to_csv('/directory/file.csv', index=False)
+```
+  
+# **Data management - `R`**{#17}
+
+This is the data preparation script required for the analysis in subsequent sections.
+
+```{r  eval=loadenvironment, echo=TRUE}
+
+iaq <- read.csv(
+    file = "/Users/mattbutler/Desktop/COVID-19/allPy.csv",
+    header = TRUE,
+    sep = ",")
+
+names(iaq)[1] <- "sensID"
+
+names(iaq)[2] <- "dateTime"
+
+iaq$date <- as.POSIXct(
+    iaq$dateTime, 
+    format = "%Y-%m-%d %H:%M:%S", 
+    tz = "")
+
+iaq$dateTime <- as.Date(
+    iaq$dateTime, 
+    "%Y-%m-%d %H:%M:%S")
+
+iaq <- selectByDate(
+  iaq,
+  start = "05/02/2022")
+
+iaq$HEPA <- as.factor(iaq$HEPA)
+
+iaq$day <- format(as.Date(iaq$dateTime), "%A")
+
+iaq$spike2 <- if_else(
+    (iaq$pm1 >= 100),
+    ">100",
+    "<100",
+    missing = NULL)
+iaq$spike2 <- as.factor(iaq$spike2)
+
+iaq$ward <- if_else(
+    (iaq$sensID == "S11217020" | 
+       iaq$sensID == "S11213560" | 
+       iaq$sensID == "S11217088" | 
+       iaq$sensID == "S11217492" | 
+       iaq$sensID == "S11217080"),
+    "F6",
+    "G6",
+    missing = NULL)
+iaq$ward <- as.factor(iaq$ward)
+
+iaq$wardLoc <- if_else(
+    (iaq$sensID == "S11217020" | 
+       iaq$sensID == "S11217080" | 
+       iaq$sensID == "S11213884" | 
+       iaq$sensID == "S11217064"),
+    "Corridor",
+    "Bay",
+    missing = NULL)
+iaq$wardLoc <- as.factor(iaq$wardLoc)
+
+iaq_1 <- iaq[iaq$HEPA=="HEPA",]
+iaq_1$wardLocHEPA <- if_else(
+  iaq_1$wardLoc == "Bay",
+    "BayHEPA",
+    "CorHEPA",
+    missing = NULL)
+iaq_2 <- iaq[iaq$HEPA=="No HEPA",]
+iaq_2$wardLocHEPA <- if_else(
+  iaq_2$wardLoc == "Bay",
+    "BayNoHEPA",
+    "CorNoHEPA",
+    missing = NULL)
+iaq <- rbind(iaq_1, iaq_2)
+iaq$wardLocHEPA <- as.factor(iaq$wardLocHEPA)
+rm(iaq_1)
+rm(iaq_2)
+
+iaq$sensLoc <- NA
+iaq[iaq$sensID == "S11213884", "sensLoc"] <- "G6CorCD"
+iaq[iaq$sensID == "S11213832", "sensLoc"] <- "G6BayC2"
+iaq[iaq$sensID == "S11217068", "sensLoc"] <- "G6BayD5"
+iaq[iaq$sensID == "S11213540", "sensLoc"] <- "G6BayG1"
+iaq[iaq$sensID == "S11217064", "sensLoc"] <- "G6CorGH"
+iaq[iaq$sensID == "S11213340", "sensLoc"] <- "G6BayH5"
+iaq[iaq$sensID == "S11217080", "sensLoc"] <- "F6CorCD"
+iaq[iaq$sensID == "S11217492", "sensLoc"] <- "F6BayD5"
+iaq[iaq$sensID == "S11217088", "sensLoc"] <- "F6BayG4"
+iaq[iaq$sensID == "S11213560", "sensLoc"] <- "F6BayH4"
+iaq[iaq$sensID == "S11217020", "sensLoc"] <- "F6CorGH"
+iaq[iaq$sensID == "S11213572", "sensLoc"] <- "F6BayC2"
+iaq$sensLoc <- as.factor(iaq$sensLoc)
+
+iaq$sensLocHEPA <- NA
+iaq[iaq$sensID == "S11213884" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "CC_G+"
+iaq[iaq$sensID == "S11213832" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BC_G+"
+iaq[iaq$sensID == "S11217068" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BD_G+"
+iaq[iaq$sensID == "S11213540" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BG_G+"
+iaq[iaq$sensID == "S11217064" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "CG_G+"
+iaq[iaq$sensID == "S11213340" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BH_G+"
+iaq[iaq$sensID == "S11217080" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "CC_F+"
+iaq[iaq$sensID == "S11217492" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BD_F+"
+iaq[iaq$sensID == "S11217088" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BG_F+"
+iaq[iaq$sensID == "S11213560" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BH_F+"
+iaq[iaq$sensID == "S11217020" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "CG_F+"
+iaq[iaq$sensID == "S11213572" & iaq$HEPA == "HEPA", "sensLocHEPA"] <- "BC_F+"
+iaq[iaq$sensID == "S11213884" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "CC_G-"
+iaq[iaq$sensID == "S11213832" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BC_G-"
+iaq[iaq$sensID == "S11217068" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BD_G-"
+iaq[iaq$sensID == "S11213540" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BG_G-"
+iaq[iaq$sensID == "S11217064" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "CG_G-"
+iaq[iaq$sensID == "S11213340" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BH_G-"
+iaq[iaq$sensID == "S11217080" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "CC_F-"
+iaq[iaq$sensID == "S11217492" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BD_F-"
+iaq[iaq$sensID == "S11217088" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BG_F-"
+iaq[iaq$sensID == "S11213560" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BH_F-"
+iaq[iaq$sensID == "S11217020" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "CG_F-"
+iaq[iaq$sensID == "S11213572" & iaq$HEPA == "No HEPA", "sensLocHEPA"] <- "BC_F-" 
+iaq$sensLocHEPA <- as.factor(iaq$sensLocHEPA)
+
+iaq$weekend <- if_else(
+    isWeekday(
+        iaq$date, 
+        wday=1:5), 
+    "Weekday", "Weekend")
+
+iaq$weekend <- as.factor(iaq$weekend)
+
+iaq$time <- hour(iaq$date)
+
+iaq$daytime <- ifelse(
+  iaq$time<=6 | 20<=iaq$time,
+  "Night","Day")
+
+iaq$daytime <- as.factor(iaq$daytime)
+
+iaq$svp1 <- (iaq$temp*7.5)/(iaq$temp+237.29)
+iaq$svp2 <- 10^iaq$svp1
+iaq$svp <- 6.11*iaq$svp2
+
+iaq$vp <- (iaq$hum*iaq$svp)/100
+
+iaq$day <- format(as.Date(iaq$dateTime), "%A")
+iaq$day <- as.factor(iaq$day)
+
+iaq$co2[iaq$co2 <= 0] <- NA # Remove negative CO2 values
+
+iaq$pres[iaq$pres <= 0] <- NA # Remove 18 out of 5 million negative pressure values
+
+iaq <- iaq[iaq$sensID != "S11217104",] #exclude the C6 sensor
+
+iaq$period <- NA
+iaq$HEPAperiod <- NA
+
+pm1SunMonTueNoHEPA <- rbind((
+  iaq[iaq$HEPA == "No HEPA" & 
+        iaq$day == "Sunday",]),
+  (iaq[iaq$HEPA == "No HEPA" &
+         iaq$day == "Monday",]), 
+  (iaq[iaq$HEPA == "No HEPA" & 
+         iaq$day == "Tuesday",]))
+pm1SunMonTueNoHEPA$DAY <- as.factor(pm1SunMonTueNoHEPA$day)
+
+iaq2a <- selectByDate(
+  iaq,
+  start = "09/02/2022",
+  end = "24/03/2022")
+head(iaq2a,1)
+tail(iaq2a,1)
+
+iaq2aBH <- iaq2a[iaq2a$sensLocHEPA=="BH_F-" |
+          iaq2a$sensLocHEPA=="BH_G+",]
+
+iaq2aBHmatched <- iaq2aBH[iaq2aBH$date <= "2022-02-11 21:53:13" |
+                   (iaq2aBH$date >= "2022-02-17 12:35:06" &
+                      iaq2aBH$date <= "2022-02-28 08:03:17") |
+                   (iaq2aBH$date >= "2022-03-18 13:51:39" &
+                      iaq2aBH$date <= "2022-03-24 23:59:59"),]
+
+iaq2aBHHEPA <- iaq2aBH[iaq2aBH$HEPA=="HEPA",]
+iaq2aBHNoHEPA <- iaq2aBH[iaq2aBH$HEPA=="No HEPA",]
+
+iaq2aBD <- iaq2a[iaq2a$sensLocHEPA=="BD_F-" |
+          iaq2a$sensLocHEPA=="BD_G+",]
+
+iaq2aBHmatched <- iaq2aBH[iaq2aBH$date <= "2022-02-11 21:53:13" |
+                   (iaq2aBH$date >= "2022-02-17 12:35:06" &
+                      iaq2aBH$date <= "2022-02-28 08:03:17") |
+                   (iaq2aBH$date >= "2022-03-18 13:51:39" &
+                      iaq2aBH$date <= "2022-03-24 23:59:59"),]
+
+iaq2b <- selectByDate(
+  iaq,
+  start = "14/10/2022",
+  end = "30/11/2022")
+
+head(iaq2b,1)
+tail(iaq2b,1)
+
+iaq2c <- selectByDate(
+  iaq,
+  start = "26/03/2022",
+  end = "12/10/2022")
+
+iaq2a$period[iaq2a$co2>-0.1] <- "matched1"
+iaq2a$period <- as.factor(iaq2a$period)
+
+iaq2b$period[iaq2b$co2>-0.1] <- "matched2"
+iaq2b$period <- as.factor(iaq2b$period)
+
+iaq2c$period[iaq2c$co2>-0.1] <- "unmatched1"
+iaq2c$period <- as.factor(iaq2c$period)
+
+iaq2a$HEPAperiod <- if_else(
+  iaq2a$HEPA == "HEPA", 
+  "HEPAmatched1", 
+  "NoHEPAmatched1")
+iaq2a$HEPAperiod <- as.factor(iaq2a$HEPAperiod)
+
+firstiaq2a <- data.frame(
+  date = c(as.POSIXct("2022-02-09 00:00:01",format = "%Y-%m-%d %H:%M:%S",tz = "GMT")),
+  sensID = c(NA),
+  dateTime = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  pres = c(NA),
+  ser = c(NA),
+  HEPA = c(NA),
+  day = c(NA),
+  spike2 = c(NA),
+  ward = c(NA),
+  wardLoc = c(NA),
+  wardLocHEPA = c(NA),
+  sensLoc = c(NA),
+  sensLocHEPA = c(NA),
+  weekend = c(NA),
+  time = c(NA),
+  daytime = c(NA),
+  svp1 = c(NA),
+  svp2 = c(NA),
+  svp = c(NA),
+  vp = c(NA),
+  period = c(NA),
+  HEPAperiod = c(NA)
+)
+
+lastiaq2a <- data.frame(
+  date = c(as.POSIXct("2022-03-24 23:59:59",format = "%Y-%m-%d %H:%M:%S",tz = "GMT")),
+  sensID = c(NA),
+  dateTime = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  pres = c(NA),
+  ser = c(NA),
+  HEPA = c(NA),
+  day = c(NA),
+  spike2 = c(NA),
+  ward = c(NA),
+  wardLoc = c(NA),
+  wardLocHEPA = c(NA),
+  sensLoc = c(NA),
+  sensLocHEPA = c(NA),
+  weekend = c(NA),
+  time = c(NA),
+  daytime = c(NA),
+  svp1 = c(NA),
+  svp2 = c(NA),
+  svp = c(NA),
+  vp = c(NA),
+  period = c(NA),
+  HEPAperiod = c(NA)
+)
+
+iaq2b$HEPAperiod <- if_else(
+  iaq2b$HEPA == "HEPA", 
+  "HEPAmatched2", 
+  "NoHEPAmatched2")
+iaq2b$HEPAperiod <- as.factor(iaq2b$HEPAperiod)
+
+iaq2 <- rbind(iaq2a, iaq2b)
+
+iaq2bS11213884 <- iaq2b[iaq2b$sensID == "S11213884",]
+
+iaq2c$HEPAperiod <- if_else(
+  iaq2c$HEPA == "HEPA", 
+  "HEPAunmatched1", 
+  "NoHEPAunmatched1")
+iaq2c$HEPAperiod <- as.factor(iaq2c$HEPAperiod)
+
+firstiaq2c <- data.frame(
+  date = c(as.POSIXct("2022-03-26 00:00:04",format = "%Y-%m-%d %H:%M:%S",tz = "GMT")),
+  sensID = c(NA),
+  dateTime = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  pres = c(NA),
+  ser = c(NA),
+  HEPA = c(NA),
+  day = c(NA),
+  spike2 = c(NA),
+  ward = c(NA),
+  wardLoc = c(NA),
+  wardLocHEPA = c(NA),
+  sensLoc = c(NA),
+  sensLocHEPA = c(NA),
+  weekend = c(NA),
+  time = c(NA),
+  daytime = c(NA),
+  svp1 = c(NA),
+  svp2 = c(NA),
+  svp = c(NA),
+  vp = c(NA)
+)
+
+lastiaq2c <- data.frame(
+  date = c(as.POSIXct("2022-10-12 23:59:57",format = "%Y-%m-%d %H:%M:%S",tz = "GMT")),
+  sensID = c(NA),
+  dateTime = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  pres = c(NA),
+  ser = c(NA),
+  HEPA = c(NA),
+  day = c(NA),
+  spike2 = c(NA),
+  ward = c(NA),
+  wardLoc = c(NA),
+  wardLocHEPA = c(NA),
+  sensLoc = c(NA),
+  sensLocHEPA = c(NA),
+  weekend = c(NA),
+  time = c(NA),
+  daytime = c(NA),
+  svp1 = c(NA),
+  svp2 = c(NA),
+  svp = c(NA),
+  vp = c(NA)
+)
+
+#iaq2cBH is iaq2c excluding the data gaps for the bay H sensors to allow direct comparison for a truly matched period albeit in differrent wards.
+
+iaq2cBH <- iaq2c[iaq2c$date <= "2022-04-19 06:53:54" |
+                  (iaq2c$date >= "2022-05-17 03:58:15" & iaq2c$date <= "2022-05-28 17:13:21") |
+                  (iaq2c$date >= "2022-05-29 03:13:25" & iaq2c$date <= "2022-05-31 14:21:48") |
+                  (iaq2c$date >= "2022-06-01 18:56:27" & iaq2c$date <= "2022-06-02 08:02:19") |
+                  (iaq2c$date >= "2022-06-21 18:08:37" & iaq2c$date <= "2022-06-22 20:46:34") |
+                  (iaq2c$date >= "2022-06-22 22:26:55" & iaq2c$date <= "2022-07-31 09:40:34") |
+                  (iaq2c$date >= "2022-07-31 19:40:40" & iaq2c$date <= "2022-08-04 10:51:02") |
+                  (iaq2c$date >= "2022-08-08 07:43:11" & iaq2c$date <= "2022-08-08 11:38:07") |
+                  (iaq2c$date >= "2022-08-11 07:36:05" & iaq2c$date <= "2022-08-15 07:56:08") |
+                  (iaq2c$date >= "2022-08-15 15:37:34" & iaq2c$date <= "2022-08-15 19:48:38") |
+                  (iaq2c$date >= "2022-08-15 21:19:33" & iaq2c$date <= "2022-09-05 05:35:59") |
+                  (iaq2c$date >= "2022-09-05 15:36:03" & iaq2c$date <= "2022-09-07 17:21:23"),]
+
+iaq2cBD <- iaq2c[iaq2c$date <= "2022-04-19 15:56:03" |
+                  (iaq2c$date >= "2022-04-20 01:56:13" & iaq2c$date <= "2022-04-25 11:54:32") |
+                  (iaq2c$date >= "2022-04-28 18:30:36" & iaq2c$date <= "2022-05-14 17:30:12") |
+                  (iaq2c$date >= "2022-05-18 12:39:53" & iaq2c$date <= "2022-06-02 13:06:57") |
+                  (iaq2c$date >= "2022-06-12 12:30:31" & iaq2c$date <= "2022-06-16 15:22:47"),]
+```
+      
+
+# iaq2d is essentially iaq minus the days of the HEPA install, 25th March 2022 and 13th October omitted as they were
+# hybrid No HEPA > HEPA days for F6 and a hybrid HEPA > No HEPA day for G6 given the deployment took the best pat of the day.
+
+iaq2d <- rbind(iaq2a, iaq2c, iaq2b)
+
+iaq2$spike2 <- if_else((iaq2$pm1 >= 100), 
+                      ">100", 
+                      "<100", 
+                      missing = NULL)
+iaq2$spike2 <- as.factor(iaq2$spike2)
+
+oaq <- importAQE(
+  site = "CAM1",
+  year = 2022,
+  data_type = "hourly",
+  pollutant = "all",
+  meta = FALSE,
+  ratified = FALSE,
+  to_narrow = FALSE,
+  progress = TRUE
+)
+
+oaq <- oaq[,-1:-2]
+oaq <- oaq[,-2:-4]
+names(oaq)[2] <- "pm10Ext"
+
+wind <- importAURN(
+site = "CAM",
+year = "2022",
+data_type = "hourly",
+pollutant = "all",
+hc = FALSE,
+meta = FALSE,
+ratified = FALSE,
+to_narrow = FALSE,
+verbose = FALSE,
+progress = TRUE
+)
+
+wind <- wind[,-1:-2]
+wind <- wind[,-2:-4]
+
+names(wind)[4] <- "tempExt"
+
+windOaq <- merge(oaq, wind, by = "date")
+
+iaqHr <- timeAverage(
+  iaq,
+  avg.time = "hour")
+iaqHr <- merge(windOaq, iaqHr, by = "date")
+
+iaqHrNoHEPA <- timeAverage(
+  iaq[iaq$HEPA == "No HEPA",],
+  avg.time = "hour")
+iaqHrNoHEPA <- merge(windOaq, iaqHrNoHEPA, by = "date")
+
+iaqHrHEPA <- timeAverage(
+  iaq[iaq$HEPA == "HEPA",],
+  avg.time = "hour")
+iaqHrHEPA <- merge(windOaq, iaqHrHEPA, by = "date")
+
+iaqHrHEPAG6 <- timeAverage(
+  iaq[iaq$HEPA == "HEPA" &
+        iaq$ward == "G6",],
+  avg.time = "hour")
+iaqHrHEPAG6 <- merge(windOaq, iaqHrHEPAG6, by = "date")
+
+iaqHrHEPAF6 <- timeAverage(
+  iaq[iaq$HEPA == "HEPA" &
+        iaq$ward == "F6",],
+  avg.time = "hour")
+iaqHrHEPAF6  <- merge(windOaq, iaqHrHEPAF6, by = "date")
+
+iaqHrNoHEPAG6 <- timeAverage(
+  iaq[iaq$HEPA == "No HEPA" &
+        iaq$ward == "G6",],
+  avg.time = "hour")
+iaqHrNoHEPAG6 <- merge(windOaq, iaqHrNoHEPAG6, by = "date")
+
+iaqHrNoHEPAF6 <- timeAverage(
+  iaq[iaq$HEPA == "No HEPA" &
+        iaq$ward == "F6",],
+  avg.time = "hour")
+iaqHrNoHEPAF6 <- merge(windOaq, iaqHrNoHEPAF6, by = "date")
+
+iaqHr$spike2 <- if_else((iaqHr$pm1 >= 100), 
+                      ">100", 
+                      "<100", 
+                      missing = NULL)
+iaqHr$spike2 <- as.factor(iaqHr$spike2)
+
+iaqHr$weekend <- if_else(isWeekday(
+  iaqHr$date, wday=1:5), 
+  "Weekday", 
+  "Weekend")
+iaqHr$weekend <- as.factor(iaqHr$weekend)
+
+iaqHr$time <- hour(iaqHr$date)
+
+iaqHr$daytime <- ifelse(iaqHr$time<=6 | 20<=iaqHr$time, 
+                        "Night",
+                        "Day" )
+iaqHr$daytime <- as.factor(iaqHr$daytime)
+
+iaqHr$day <- format(as.Date(iaqHr$dateTime), "%A")
+iaqHr$day <- as.factor(iaqHr$day)
+
+iaqHrNoHEPA$spike2 <- if_else((iaqHrNoHEPA$pm1 >= 100), 
+                      ">100", 
+                      "<100", 
+                      missing = NULL)
+iaqHrNoHEPA$spike2 <- as.factor(iaqHrNoHEPA$spike2)
+iaqHrNoHEPA$weekend <- if_else(
+  isWeekday(
+    iaqHrNoHEPA$date, 
+    wday=1:5), 
+  "Weekday", 
+  "Weekend")
+iaqHrNoHEPA$weekend <- as.factor(iaqHrNoHEPA$weekend)
+
+iaqHrNoHEPA$time <- hour(iaqHrNoHEPA$date)
+
+iaqHrNoHEPA$daytime <- ifelse(
+  iaqHrNoHEPA$time<=6 | 20<=iaqHrNoHEPA$time, 
+  "Night",
+  "Day" )
+iaqHrNoHEPA$daytime <- as.factor(iaqHrNoHEPA$daytime)
+
+iaqHrNoHEPA$day <- format(as.Date(iaqHrNoHEPA$dateTime), "%A")
+iaqHrNoHEPA$day <- as.factor(iaqHrNoHEPA$day)
+
+iaqHrHEPA$weekend <- if_else(isWeekday(
+  iaqHrHEPA$date, 
+  wday=1:5), 
+  "Weekday", 
+  "Weekend")
+iaqHrHEPA$weekend <- as.factor(iaqHrHEPA$weekend)
+
+iaqHrHEPA$time <- hour(iaqHrHEPA$date)
+
+iaqHrHEPA$daytime <- ifelse(
+  iaqHrHEPA$time<=6 | 20<=iaqHrHEPA$time, 
+  "Night",
+  "Day")
+iaqHrHEPA$daytime <- as.factor(iaqHrHEPA$daytime)
+
+iaqHrHEPA$day <- format(as.Date(iaqHrHEPA$dateTime), "%A")
+iaqHrHEPA$day <- as.factor(iaqHrHEPA$day)
+
+iaqHrHEPAG6$weekend <- if_else(isWeekday(
+  iaqHrHEPAG6$date, 
+  wday=1:5), 
+  "Weekday", 
+  "Weekend")
+iaqHrHEPAG6$weekend <- as.factor(iaqHrHEPAG6$weekend)
+
+iaqHrHEPAG6$time <- hour(iaqHrHEPAG6$date)
+iaqHrHEPAG6$daytime <- ifelse(
+  iaqHrHEPAG6$time<=6 | 20<=iaqHrHEPAG6$time, 
+  "Night",
+  "Day")
+iaqHrHEPAG6$daytime <- as.factor(iaqHrHEPAG6$daytime)
+
+iaqHrHEPAG6$day <- format(
+  as.Date(iaqHrHEPAG6$dateTime), 
+  "%A")
+iaqHrHEPAG6$day <- as.factor(iaqHrHEPAG6$day)
+
+iaqHrHEPAF6$weekend <- if_else(
+  isWeekday(
+    iaqHrHEPAF6$date, 
+    wday=1:5), 
+  "Weekday", 
+  "Weekend")
+iaqHrHEPAF6$weekend <- as.factor(iaqHrHEPAF6$weekend)
+
+iaqHrHEPAF6$time <- hour(iaqHrHEPAF6$date)
+
+iaqHrHEPAF6$daytime <- ifelse(
+  iaqHrHEPAF6$time<=6 | 20<=iaqHrHEPAF6$time, 
+  "Night",
+  "Day")
+iaqHrHEPAF6$daytime <- as.factor(iaqHrHEPAF6$daytime)
+
+iaqHrHEPAF6$day <- format(as.Date(iaqHrHEPAF6$dateTime), "%A")
+iaqHrHEPAF6$day <- as.factor(iaqHrHEPAF6$day)
+
+iaqHrNoHEPAG6$weekend <- if_else(
+  isWeekday(
+    iaqHrNoHEPAG6$date, 
+    wday=1:5), 
+  "Weekday", 
+  "Weekend")
+iaqHrNoHEPAG6$weekend <- as.factor(iaqHrNoHEPAG6$weekend)
+
+iaqHrNoHEPAG6$time <- hour(iaqHrNoHEPAG6$date)
+
+iaqHrNoHEPAG6$daytime <- ifelse(
+  iaqHrNoHEPAG6$time<=6 | 20<=iaqHrNoHEPAG6$time, 
+  "Night",
+  "Day")
+iaqHrNoHEPAG6$daytime <- as.factor(iaqHrNoHEPAG6$daytime)
+
+iaqHrNoHEPAG6$day <- format(
+  as.Date(
+    iaqHrNoHEPAG6$dateTime), 
+  "%A")
+iaqHrNoHEPAG6$day <- as.factor(iaqHrNoHEPAG6$day)
+
+iaqHrNoHEPAF6$weekend <- if_else(
+  isWeekday(
+    iaqHrNoHEPAF6$date, 
+    wday=1:5), 
+  "Weekday", 
+  "Weekend")
+iaqHrNoHEPAF6$weekend <- as.factor(iaqHrNoHEPAF6$weekend)
+
+iaqHrNoHEPAF6$time <- hour(iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6$daytime <- ifelse(
+  iaqHrNoHEPAF6$time<=6 | 20<=iaqHrNoHEPAF6$time, 
+  "Night",
+  "Day")
+iaqHrNoHEPAF6$daytime <- as.factor(iaqHrNoHEPAF6$daytime)
+
+iaqHrNoHEPAF6$day <- format(
+  as.Date(
+    iaqHrNoHEPAF6$dateTime), 
+  "%A")
+iaqHrNoHEPAF6$day <- as.factor(iaqHrNoHEPAF6$day)
+```
+
+```{r xts, eval=xts}
+
+iaq2aPM1.xts <- xts(iaq2a$pm1, iaq2a$date)
+iaq2aPM2_5.xts <- xts(iaq2a$pm2_5, iaq2a$date)
+iaq2aPM4.xts <- xts(iaq2a$pm4, iaq2a$date)
+iaq2aPM10.xts <- xts(iaq2a$pm10, iaq2a$date)
+iaq2aTEMP.xts <- xts(iaq2a$temp, iaq2a$date)
+iaq2aVP.xts <- xts(iaq2a$vp, iaq2a$date)
+iaq2aCO2.xts <- xts(iaq2a$co2, iaq2a$date)
+iaq2aPRES.xts <- xts(iaq2a$pres, iaq2a$date)
+
+iaq2bPM1.xts <- xts(iaq2b$pm1, iaq2b$date)
+iaq2bPM2_5.xts <- xts(iaq2b$pm2_5, iaq2b$date)
+iaq2bPM4.xts <- xts(iaq2b$pm4, iaq2b$date)
+iaq2bPM10.xts <- xts(iaq2b$pm10, iaq2b$date)
+iaq2bTEMP.xts <- xts(iaq2b$temp, iaq2b$date)
+iaq2bVP.xts <- xts(iaq2b$vp, iaq2b$date)
+iaq2bCO2.xts <- xts(iaq2b$co2, iaq2b$date)
+iaq2bPRES.xts <- xts(iaq2b$pres, iaq2b$date)
+
+iaq2bS11213884PM1.xts <- xts(iaq2bS11213884$pm1, iaq2bS11213884$date)
+iaq2bS11213884PM2_5.xts <- xts(iaq2bS11213884$pm2_5, iaq2bS11213884$date)
+iaq2bS11213884PM4.xts <- xts(iaq2bS11213884$pm4, iaq2bS11213884$date)
+iaq2bS11213884PM10.xts <- xts(iaq2bS11213884$pm10, iaq2bS11213884$date)
+iaq2bS11213884TEMP.xts <- xts(iaq2bS11213884$temp, iaq2bS11213884$date)
+iaq2bS11213884VP.xts <- xts(iaq2bS11213884$vp, iaq2bS11213884$date)
+iaq2bS11213884CO2.xts <- xts(iaq2bS11213884$co2, iaq2bS11213884$date)
+iaq2bS11213884PRES.xts <- xts(iaq2bS11213884$pres, iaq2bS11213884$date)
+
+iaq2cPM1.xts <- xts(iaq2c$pm1, iaq2c$date)
+iaq2cPM2_5.xts <- xts(iaq2c$pm2_5, iaq2c$date)
+iaq2cPM4.xts <- xts(iaq2c$pm4, iaq2c$date)
+iaq2cPM10.xts <- xts(iaq2c$pm10, iaq2c$date)
+iaq2cTEMP.xts <- xts(iaq2c$temp, iaq2c$date)
+iaq2cVP.xts <- xts(iaq2c$vp, iaq2c$date)
+iaq2cCO2.xts <- xts(iaq2c$co2, iaq2c$date)
+iaq2cPRES.xts <- xts(iaq2c$pres, iaq2c$date)
+
+iaq2dPM1.xts <- xts(iaq2d$pm1, iaq2d$date)
+iaq2dPM2_5.xts <- xts(iaq2d$pm2_5, iaq2d$date)
+iaq2dPM4.xts <- xts(iaq2d$pm4, iaq2d$date)
+iaq2dPM10.xts <- xts(iaq2d$pm10, iaq2d$date)
+iaq2dTEMP.xts <- xts(iaq2d$temp, iaq2d$date)
+iaq2dVP.xts <- xts(iaq2d$vp, iaq2d$date)
+iaq2dCO2.xts <- xts(iaq2d$co2, iaq2d$date)
+iaq2dPRES.xts <- xts(iaq2d$pres, iaq2d$date)
+
+iaq2PM1.xts <- xts(iaq2$pm1, iaq2$date)
+iaq2PM2_5.xts <- xts(iaq2$pm2_5, iaq2$date)
+iaq2PM4.xts <- xts(iaq2$pm4, iaq2$date)
+iaq2PM10.xts <- xts(iaq2$pm10, iaq2$date)
+iaq2TEMP.xts <- xts(iaq2$temp, iaq2$date)
+iaq2VP.xts <- xts(iaq2$vp, iaq2$date)
+iaq2CO2.xts <- xts(iaq2$co2, iaq2$date)
+iaq2PRES.xts <- xts(iaq2$pres, iaq2$date)
+
+# iaq3 removes two sensors with no No HEPA data
+iaq3 <- iaq2[iaq2$sensID != "S11213340" &
+               iaq2$sensID != "S11217068",] 
+iaq3PM1.xts <- xts(iaq3$pm1, iaq3$date)
+iaq3PM2_5.xts <- xts(iaq3$pm2_5, iaq3$date)
+iaq3PM4.xts <- xts(iaq3$pm4, iaq3$date)
+iaq3PM10.xts <- xts(iaq3$pm10, iaq3$date)
+iaq3TEMP.xts <- xts(iaq3$temp, iaq3$date)
+iaq3VP.xts <- xts(iaq3$vp, iaq3$date)
+iaq3CO2.xts <- xts(iaq3$co2, iaq3$date)
+iaq3PRES.xts <- xts(iaq3$pres, iaq3$date)
+
+iaqHrPM1.xts <- xts(iaqHr$pm1, iaqHr$date)
+iaqHrPM2_5.xts <- xts(iaqHr$pm2_5, iaqHr$date)
+iaqHrPM4.xts <- xts(iaqHr$pm4, iaqHr$date)
+iaqHrPM10.xts <- xts(iaqHr$pm10, iaqHr$date)
+iaqHrTEMP.xts <- xts(iaqHr$temp, iaqHr$date)
+iaqHrVP.xts <- xts(iaqHr$vp, iaqHr$date)
+iaqHrCO2.xts <- xts(iaqHr$co2, iaqHr$date)
+iaqHrPRES.xts <- xts(iaqHr$pres, iaqHr$date)
+iaqHrPM10Ext.xts <- xts(iaqHr$pm10Ext, iaqHr$date)
+iaqHrWS.xts <- xts(iaqHr$ws, iaqHr$date)
+iaqHrWD.xts <- xts(iaqHr$wd, iaqHr$date)
+iaqHrTempExt.xts <- xts(iaqHr$tempExt, iaqHr$date)
+
+iaqHrNoHEPAPM1.xts <- xts(iaqHrNoHEPA$pm1, iaqHrNoHEPA$date)
+iaqHrNoHEPAPM2_5.xts <- xts(iaqHrNoHEPA$pm2_5, iaqHrNoHEPA$date)
+iaqHrNoHEPAPM4.xts <- xts(iaqHrNoHEPA$pm4, iaqHrNoHEPA$date)
+iaqHrNoHEPAPM10.xts <- xts(iaqHrNoHEPA$pm10, iaqHrNoHEPA$date)
+iaqHrNoHEPATEMP.xts <- xts(iaqHrNoHEPA$temp, iaqHrNoHEPA$date)
+iaqHrNoHEPAVP.xts <- xts(iaqHrNoHEPA$vp, iaqHrNoHEPA$date)
+iaqHrNoHEPACO2.xts <- xts(iaqHrNoHEPA$co2, iaqHrNoHEPA$date)
+iaqHrNoHEPAPRES.xts <- xts(iaqHrNoHEPA$pres, iaqHrNoHEPA$date)
+iaqHrNoHEPAPM10Ext.xts <- xts(iaqHrNoHEPA$pm10Ext, iaqHrNoHEPA$date)
+iaqHrNoHEPAWS.xts <- xts(iaqHrNoHEPA$ws, iaqHrNoHEPA$date)
+iaqHrNoHEPAWD.xts <- xts(iaqHrNoHEPA$wd, iaqHrNoHEPA$date)
+iaqHrNoHEPATempExt.xts <- xts(iaqHrNoHEPA$tempExt, iaqHrNoHEPA$date)
+
+iaqHrHEPAPM1.xts <- xts(iaqHrHEPA$pm1, iaqHrHEPA$date)
+iaqHrHEPAPM2_5.xts <- xts(iaqHrHEPA$pm2_5, iaqHrHEPA$date)
+iaqHrHEPAPM4.xts <- xts(iaqHrHEPA$pm4, iaqHrHEPA$date)
+iaqHrHEPAPM10.xts <- xts(iaqHrHEPA$pm10, iaqHrHEPA$date)
+iaqHrHEPATEMP.xts <- xts(iaqHrHEPA$temp, iaqHrHEPA$date)
+iaqHrHEPAVP.xts <- xts(iaqHrHEPA$vp, iaqHrHEPA$date)
+iaqHrHEPACO2.xts <- xts(iaqHrHEPA$co2, iaqHrHEPA$date)
+iaqHrHEPAPRES.xts <- xts(iaqHrHEPA$pres, iaqHrHEPA$date)
+iaqHrHEPAPM10Ext.xts <- xts(iaqHrHEPA$pm10Ext, iaqHrHEPA$date)
+iaqHrHEPAWS.xts <- xts(iaqHrHEPA$ws, iaqHrHEPA$date)
+iaqHrHEPAWD.xts <- xts(iaqHrHEPA$wd, iaqHrHEPA$date)
+iaqHrHEPATempExt.xts <- xts(iaqHrHEPA$tempExt, iaqHrHEPA$date)
+
+iaqHrHEPAG6PM1.xts <- xts(iaqHrHEPAG6$pm1, iaqHrHEPAG6$date)
+iaqHrHEPAG6PM2_5.xts <- xts(iaqHrHEPAG6$pm2_5, iaqHrHEPAG6$date)
+iaqHrHEPAG6PM4.xts <- xts(iaqHrHEPAG6$pm4, iaqHrHEPAG6$date)
+iaqHrHEPAG6PM10.xts <- xts(iaqHrHEPAG6$pm10, iaqHrHEPAG6$date)
+iaqHrHEPAG6TEMP.xts <- xts(iaqHrHEPAG6$temp, iaqHrHEPAG6$date)
+iaqHrHEPAG6VP.xts <- xts(iaqHrHEPAG6$vp, iaqHrHEPAG6$date)
+iaqHrHEPAG6CO2.xts <- xts(iaqHrHEPAG6$co2, iaqHrHEPAG6$date)
+iaqHrHEPAG6PRES.xts <- xts(iaqHrHEPAG6$pres, iaqHrHEPAG6$date)
+iaqHrHEPAG6PM10Ext.xts <- xts(iaqHrHEPAG6$pm10Ext, iaqHrHEPAG6$date)
+iaqHrHEPAG6WS.xts <- xts(iaqHrHEPAG6$ws, iaqHrHEPAG6$date)
+iaqHrHEPAG6WD.xts <- xts(iaqHrHEPAG6$wd, iaqHrHEPAG6$date)
+iaqHrHEPAG6TempExt.xts <- xts(iaqHrHEPAG6$tempExt, iaqHrHEPAG6$date)
+
+iaqHrHEPAF6PM1.xts <- xts(iaqHrHEPAF6$pm1, iaqHrHEPAF6$date)
+iaqHrHEPAF6PM2_5.xts <- xts(iaqHrHEPAF6$pm2_5, iaqHrHEPAF6$date)
+iaqHrHEPAF6PM4.xts <- xts(iaqHrHEPAF6$pm4, iaqHrHEPAF6$date)
+iaqHrHEPAF6PM10.xts <- xts(iaqHrHEPAF6$pm10, iaqHrHEPAF6$date)
+iaqHrHEPAF6TEMP.xts <- xts(iaqHrHEPAF6$temp, iaqHrHEPAF6$date)
+iaqHrHEPAF6VP.xts <- xts(iaqHrHEPAF6$vp, iaqHrHEPAF6$date)
+iaqHrHEPAF6CO2.xts <- xts(iaqHrHEPAF6$co2, iaqHrHEPAF6$date)
+iaqHrHEPAF6PRES.xts <- xts(iaqHrHEPAF6$pres, iaqHrHEPAF6$date)
+iaqHrHEPAF6PM10Ext.xts <- xts(iaqHrHEPAF6$pm10Ext, iaqHrHEPAF6$date)
+iaqHrHEPAF6WS.xts <- xts(iaqHrHEPAF6$ws, iaqHrHEPAF6$date)
+iaqHrHEPAF6WD.xts <- xts(iaqHrHEPAF6$wd, iaqHrHEPAF6$date)
+iaqHrHEPAF6TempExt.xts <- xts(iaqHrHEPAF6$tempExt, iaqHrHEPAF6$date)
+
+iaqHrNoHEPAG6PM1.xts <- xts(iaqHrNoHEPAG6$pm1, iaqHrNoHEPAG6$date)
+iaqHrNoHEPAG6PM2_5.xts <- xts(iaqHrNoHEPAG6$pm2_5, iaqHrNoHEPAG6$date)
+iaqHrNoHEPAG6PM4.xts <- xts(iaqHrNoHEPAG6$pm4, iaqHrNoHEPAG6$date)
+iaqHrNoHEPAG6PM10.xts <- xts(iaqHrNoHEPAG6$pm10, iaqHrNoHEPAG6$date)
+iaqHrNoHEPAG6TEMP.xts <- xts(iaqHrNoHEPAG6$temp, iaqHrNoHEPAG6$date)
+iaqHrNoHEPAG6VP.xts <- xts(iaqHrNoHEPAG6$vp, iaqHrNoHEPAG6$date)
+iaqHrNoHEPAG6CO2.xts <- xts(iaqHrNoHEPAG6$co2, iaqHrNoHEPAG6$date)
+iaqHrNoHEPAG6PRES.xts <- xts(iaqHrNoHEPAG6$pres, iaqHrNoHEPAG6$date)
+iaqHrNoHEPAG6PM10Ext.xts <- xts(iaqHrNoHEPAG6$pm10Ext, iaqHrNoHEPAG6$date)
+iaqHrNoHEPAG6WS.xts <- xts(iaqHrNoHEPAG6$ws, iaqHrNoHEPAG6$date)
+iaqHrNoHEPAG6WD.xts <- xts(iaqHrNoHEPAG6$wd, iaqHrNoHEPAG6$date)
+iaqHrNoHEPAG6TempExt.xts <- xts(iaqHrNoHEPAG6$tempExt, iaqHrNoHEPAG6$date)
+
+iaqHrNoHEPAF6PM1.xts <- xts(iaqHrNoHEPAF6$pm1, iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6PM2_5.xts <- xts(iaqHrNoHEPAF6$pm2_5, iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6PM4.xts <- xts(iaqHrNoHEPAF6$pm4, iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6PM10.xts <- xts(iaqHrNoHEPAF6$pm10, iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6TEMP.xts <- xts(iaqHrNoHEPAF6$temp, iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6VP.xts <- xts(iaqHrNoHEPAF6$vp, iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6CO2.xts <- xts(iaqHrNoHEPAF6$co2, iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6PRES.xts <- xts(iaqHrNoHEPAF6$pres, iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6PM10Ext.xts <- xts(iaqHrNoHEPAF6$pm10Ext, iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6WS.xts <- xts(iaqHrNoHEPAF6$ws, iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6WD.xts <- xts(iaqHrNoHEPAF6$wd, iaqHrNoHEPAF6$date)
+iaqHrNoHEPAF6TempExt.xts <- xts(iaqHrNoHEPAF6$tempExt, iaqHrNoHEPAF6$date)
+
+iaq2bS11213832 <- iaq2b[iaq2b$sensID == "S11213832",]
+
+iaq2bS11213832PM1.xts <- xts(iaq2bS11213832$pm1, iaq2bS11213832$date)
+iaq2bS11213832PM2_5.xts <- xts(iaq2bS11213832$pm2_5, iaq2bS11213832$date)
+iaq2bS11213832PM4.xts <- xts(iaq2bS11213832$pm4, iaq2bS11213832$date)
+iaq2bS11213832PM10.xts <- xts(iaq2bS11213832$pm10, iaq2bS11213832$date)
+iaq2bS11213832TEMP.xts <- xts(iaq2bS11213832$temp, iaq2bS11213832$date)
+iaq2bS11213832VP.xts <- xts(iaq2bS11213832$vp, iaq2bS11213832$date)
+iaq2bS11213832CO2.xts <- xts(iaq2bS11213832$co2, iaq2bS11213832$date)
+iaq2bS11213832PRES.xts <- xts(iaq2bS11213832$pres, iaq2bS11213832$date)
+```
+
+## Creating the new dataframe `iaq` in `R`{#17a}  
+
+  
+> Read the newly exported `.csv` file from 1.6 as a new `dataframe` in `R` entitled `iaq`.
+  
+`iaq <- read.csv(file = "/path/iaq.csv", header = TRUE, sep = ",")`
+  
+```{r eval=FALSE, echo=FALSE}
+iaq <- read.csv(file = "/Users/mattbutler/Desktop/COVID-19/IAQ data/allPy.csv", header = TRUE, sep = ",")
+```
+  
+## Initial data mangement in `R`{#18}  
+
+### Renaming variables in `R`{#181}  
+  
+> Currently the individual sensor IDs are located under the column variable `unit` which given unit is an object in `R` can lead to conflicts in the code. `unit` is therefore renamed to `sensID`. Secondly the `time` column variable contains both date and time data and is therefore renamed `dateTime`.
+  
+```{r eval=FALSE}
+names(iaq)[1] <- "sensID"
+names(iaq)[2] <- "dateTime"
+```
+  
+### Creating a new column variable `date` as `POSIXct()` in `R`{#182} 
+
+> For time series analysis with the`**xts()**` and `**forecast()**` packages, irregularly spaced date & time observations require the `POSIXct()` format. `POSIXct()` changes the date time zones in R. The `tz()` environment variable sets the current time zone for a location. The time zone can be changed to any time zone by providing the exact city name of the required place. Daylight Saving Time (DST) is the standard time-zone which can be converted to GMT. tz = "" retains the current time zone. NB. the column name is named `date` in order for it to work with the `**openair**` package.
+  
+```{r eval=FALSE}
+iaq$date <- as.POSIXct(iaq$dateTime, format = "%Y-%m-%d %H:%M:%S", tz = "")
+```
+  
+The second line of code translates the `timeDate` variable into date and time data utilising the `as.Date()` function.
+  
+```{r eval=FALSE}
+iaq$dateTime <- as.Date(iaq$dateTime, "%Y-%m-%d %H:%M:%S")
+```
+
+## Create daytime and nightime variable{#180b}
+
+```{r eval=FALSE}
+iaq$time <- hour(iaq$date)
+iaq$daytime <- ifelse( iaq$time<6 | 20<iaq$time, "Night","Day" )
+iaq$daytime <- as.factor(iaq$daytime)
+```
+
+## Selecting only dates when the sensors were installed{#181a}
+
+The sensors were installed in February however the SD card data includes data from when the sensors were being tested during manufacturing. We therefore need to exclude any values from before 5th February 2022.
+
+```{r eval=FALSE}
+iaq <- selectByDate(
+  iaq,
+  start = "05/02/2022")
+```
+
+5100257 observarions > 5003939 observations to find the first date and time the sensors were switched on we can then use `head()`.
+
+```{r out.width="100%"}
+head(iaq)
+```
+
+Here we see that the first sensor to be switched on recorded an observation at 13:54:03 on the 8th February 2022 and the sensors were removed on 30th November 2022 with the last observation being at 15:07:52.
+
+## Transform `HEPA` variable into a factor{#19a}
+
+```{r eval=FALSE}
+iaq$HEPA <- as.factor(iaq$HEPA)
+```
+
+## `iaq` summary in `R`{#19}  
+
+  
+> The next section of code produces a summary of the new *"iaq"* dataframe. The `summary()` function automatically calculates the following summary statistics for the vector:
+  
+**Min**: The minimum value  
+  
+**1st Qu**: The value of the 1st quartile (25th percentile)  
+  
+**Median**: The median value  
+  
+**3rd Qu**: The value of the 3rd quartile (75th percentile)  
+  
+**Max**: The maximum value  
+  
+Any missing values `= NA` in the vector will automatically be excluded when calculating the summary statistics by the `summary()` function.
+  
+```{r r19}
+summary(iaq)
+```
+  
+## Table of units for sensor readings{#191}
+These units are used throughout this document
+
+  
+| Variable  | Observation             | Unit                           |
+|-----------|-------------------------|--------------------------------|
+| sensID    | AerosolSenseID          | Character                      |
+| dateTime  | Date & time             | YYYY-MM-DD HH:MM:SS            |
+| pm1       | PM~1~                   | ug/m^3^                        |
+| pm2_5     | PM~2.5~                 | ug/m^3^                        |
+| pm4       | PM~4~                   | ug/m^3^                        |
+| pm10      | PM~10~                  | ug/m^3^                        |
+| temp      | Temperature             | celsius                        |
+| hum       | Relative humidity       | %                              |
+| c02       | Carbon dioxide (CO~2~)  | ppm                            |
+| pres      | Air pressure            | mBar                           |
+| ser       | Unknown variable        | Numeric                        |
+| HEPA      | HEPA state (0=off,1=on) | Binary 0 or 1                  |
+| timeDate2 | Date, time & time zone  | POSIXct YYYY-MM-DD HH:MM:SS.MS |
+  
+## `iaq` as a `tibble()` in `R`{#192}  
+
+  
+> Tibbles are data frames, but they tweak some older behaviours to make life a little easier. `R` is an old language, and some things that were useful 10 or 20 years ago now get in the way. From this point on `dataframes` in `R` will be mostly represented as a `tibble()`.
+  
+```{r}
+tibble(iaq)
+```
+
+# **Second stage data mangement in `R`**{#193}
+
+## Create new variables:{#194} 
+
+###`iaq$day` - Day of the week (Monday, Tues.. etc) `as.factor()`{#194a}
+
+```{r eval=FALSE}
+iaq$day <- format(as.Date(iaq$dateTime), "%A")
+```
+
+###`iaq$spike2`, >100 & <100, `as.factor()`{#194b}
+
+```{r eval=FALSE}
+iaq$spike2 <- if_else((iaq$pm1 >= 100), 
+                      ">100", 
+                      "<100", 
+                      missing = NULL)
+iaq$spike2 <- as.factor(iaq$spike2)
+```
+
+### `iaq$weekend` - Weekend or Weekday `as.factor(){#1944}
+
+```{r eval=FALSE}
+iaq$weekend <- if_else(isWeekday(iaq$date, wday=1:5), "Weekday", "Weekend")
+iaq$weekend <- as.factor(iaq$weekend)
+```
+
+### `iaq$time` and `iaq$daytime` (Day or Night) `as.factor()`{#194d}
+
+The following creates a new factor variable with two levels Day or Night for the following time periods:
+
+1. Day = 0600hrs to 2000hrs
+2. Night = 2000hrs to 0600hrs
+
+**NA values will be removed.**
+
+```{r eval=FALSE}
+iaq$time <- hour(iaq$date)
+iaq$daytime <- ifelse( iaq$time<=6 | 20<=iaq$time, "Night","Day" )
+iaq$daytime <- as.factor(iaq$daytime)
+```
+
+## OAQ data merge{#1000}
+
+In order to better understand indoor air quality we need to have some understanding of external air quality. We can get this from Air Quality England for a sensor located in 'Cambridge Parker Street':
+
+```{r eval=FALSE}
+oaq <- importAQE(
+  site = "CAM1",
+  year = 2022,
+  data_type = "hourly",
+  pollutant = "all",
+  meta = FALSE,
+  ratified = FALSE,
+  to_narrow = FALSE,
+  progress = TRUE
+)
+```
+
+and then a separate sensor 'Cambridge Roadside' in AURN to get wind speed, direction and air temperature:
+
+```{r eval=FALSE}
+wind <- importAURN(
+site = "CAM",
+year = "2022",
+data_type = "hourly",
+pollutant = "all",
+hc = FALSE,
+meta = FALSE,
+ratified = FALSE,
+to_narrow = FALSE,
+verbose = FALSE,
+progress = TRUE
+)
+```
+
+We then need to merge the 2 new data sets (OAQ and wind) by date into IAQ:
+
+Firstly we need to transform the iaq dataset into hourly averages into `iaqHourly`.
+
+```{r eval=FALSE}
+iaqHr <- timeAverage(iaq, avg.time = "hour")
+```
+
+We then need to rename the pm10 variable for oaq. As we will not be utilising nox, no2 we will remove these from the `oaq` dataframe along with the `code` and `site` variables.
+
+```{r eval=FALSE}
+names(oaq)[7] <- "pm10Ext"
+```
+
+Then:
+
+```{r eval=FALSE}
+windOaq <- merge(oaq, wind, by = "date")
+iaqHr <- merge(iaqHr, windOaq, by = "date")
+rm(windOaq)
+```

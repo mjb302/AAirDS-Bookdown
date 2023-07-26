@@ -1,0 +1,242 @@
+```{r  eval=loadenvironment, echo=TRUE}
+
+acu <- read.csv(
+    file = "/Users/mattbutler/Desktop/COVID-19/IAQ data/ACUs.csv",
+    header = TRUE,
+    sep = ",")
+
+acu <- selectByDate(
+  acu,
+  start = "25/03/2022")
+
+acu$datetime <- as.POSIXct(
+    acu$datetime, 
+    format = "%Y-%m-%d %H:%M:%S", 
+    tz = "")
+
+acu2 <- read.csv(
+    file = "/Users/mattbutler/Desktop/COVID-19/IAQ data/ACU2.csv",
+    header = TRUE,
+    sep = ",")
+
+acu2 <- selectByDate(
+  acu2,
+  start = "25/03/2022")
+
+acu2$datetime <- as.POSIXct(
+    acu2$datetime, 
+    format = "%Y-%m-%d %H:%M:%S", 
+    tz = "")
+
+#day1 returns a day label where the days are divided midday to midday wit 1 being all the date times from 2022-03-25 15:54:03 to 2022-03-26 11:59:37
+
+#day2 returns a day label where the days are divided midnight to midnight with 1 being all the date times from 2022-03-25 15:54:03 to 2022-03-25 23:59:29
+
+acu2$day1 <- round(acu2$day_diff_1, digits = 0)
+acu2$day2 <- round(acu2$day_diff_2, digits = 0)
+
+day1 <- data.frame(day1 = (unique(ACU1$day1)))
+
+View(day1)
+day1$length <- length(ACU1$day1[day1$day1==1])
+```
+
+```{r}
+A <- acu[acu$unit=="S11213604",] # G Bay
+B <- acu[acu$unit=="S11213796",]
+C <- acu[acu$unit=="S11218484",] # H Bay
+D <- acu[acu$unit=="S11213932",] # Corridor C&D
+E <- acu[acu$unit=="S11213856",] # D Bay
+F <- acu[acu$unit=="S11213916",]
+
+ACU1 <- acu2[acu2$unit=="S11213604",] # G Bay
+ACU2 <- acu2[acu2$unit=="S11218484",] # H Bay
+ACU4 <- acu2[acu2$unit=="S11213932",] # Corridor C&D
+ACU3 <- acu2[acu2$unit=="S11213856",] # D Bay
+
+length(ACU1$day1[day1==1])
+
+F6avg <- timeAverage(
+  F6,
+  avg.time = "day",
+  data.thresh = 0,
+  statistic = "mean",
+  type = "default",
+  percentile = NA,
+  start.date = "2022-03-25 12:00:00",
+  end.date = NA,
+  interval = NA,
+  vector.ws = FALSE,
+  fill = FALSE)
+
+write.csv(F6avg, "/Users/mattbutler/Desktop/COVID-19/IAQ data/F6avg.csv", row.names=FALSE)
+
+G6avg <- timeAverage(
+  G6,
+  avg.time = "day",
+  data.thresh = 0,
+  statistic = "mean",
+  type = "default",
+  percentile = NA,
+  start.date = "2022-03-25 12:00:00",
+  end.date = NA,
+  interval = NA,
+  vector.ws = FALSE,
+  fill = FALSE)
+
+write.csv(G6avg, "/Users/mattbutler/Desktop/COVID-19/IAQ data/G6avg.csv", row.names=FALSE)
+
+```
+
+```{r}
+firstacu <- data.frame(
+  unit = c(NA),
+  date = c(NA),
+  time = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  ser = c(NA),
+  datetime = c(as.POSIXct("2022-03-25 15:46:09",format = "%Y-%m-%d %H:%M:%S",tz = "GMT"))
+)
+
+lastacu <- data.frame(
+  unit = c(NA),
+  date = c(NA),
+  time = c(NA),
+  pm1 = c(NA),
+  pm2_5 = c(NA),
+  pm4 = c(NA),
+  pm10 = c(NA),
+  temp = c(NA),
+  hum = c(NA),
+  co2 = c(NA),
+  ser = c(NA),
+  datetime = c(as.POSIXct("2023-03-21 13:00:56",format = "%Y-%m-%d %H:%M:%S",tz = "GMT"))
+)
+```
+
+```{r}
+# We will ignore B and F as they have little data.
+
+A <- rbind(firstacu,A,lastacu)
+C <- rbind(firstacu,C,lastacu)
+D <- rbind(firstacu,D,lastacu)
+E <- rbind(firstacu,E,lastacu)
+```
+
+```{r}
+MissingDataACU <- function(A,caption){
+
+A.sensdat <- A # Combined vertically
+
+# Compute location of missing data
+A.missLoc <- diff(as.numeric(A.sensdat$datetime))
+A.q <- which(A.missLoc > 3600) # These are the numerical loactions
+A.gapStart <- A.sensdat$datetime[A.q] # These are date stamps for the start of the gap (missing data)
+A.gapStop <- A.sensdat$datetime[A.q+1]  # These are date stamps for the stop of the gap (missing data)
+A.gapSize <- as.numeric(A.gapStop) - as.numeric(A.gapStart)
+A.gapSize <- (A.gapSize/3600) # These are the size of the gaps in hours
+A.gapSize <- round(A.gapSize,1)
+A.nmiss <- A.gapSize*120
+A.w <- floor(A.nmiss) # This is the estimated number of missing data points.
+
+# Compile results table for missing data
+A.gapLoc <- A.q
+A.gapWidth <- A.w
+A.gapStart <- as.character(A.gapStart, "%d-%m-%Y %H:%M:%S")
+A.gapStop <- as.character(A.gapStop, "%d-%m-%Y %H:%M:%S")
+A.missResults <- cbind.data.frame(A.gapStart, A.gapStop, A.gapSize, A.gapWidth)
+A.missResults <- adorn_totals(A.missResults, where = "row")
+
+knitr::kable(
+  A.missResults,
+  col.names = c("Gap start", "Gap stop", "Duration in hours", "Number of missing observations"),
+  format = "latex",
+  booktabs = TRUE,
+  caption = paste(caption)
+  ) %>%
+  kable_styling(latex_options = "hold_position")
+}
+```
+
+```{r}
+MissingDataACU(A,"Data showing when F6 G bay ACU was inactive")
+```
+```{r}
+MissingDataACU(C,"Data showing when F6 H bay ACU was inactive")
+```
+```{r}
+MissingDataACU(D,"Data showing when F6 CandD corridor ACU was inactive")
+```
+```{r}
+MissingDataACU(E,"Data showing when F6 D bay ACU was inactive")
+```
+```{r}
+iaq2cBHACU <- C[C$datetime <= "2022-04-19 06:53:54" |
+                  (C$datetime >= "2022-05-17 03:58:15" & C$datetime <= "2022-05-28 17:13:21") |
+                  (C$datetime >= "2022-05-29 03:13:25" & C$datetime <= "2022-05-31 14:21:48") |
+                  (C$datetime >= "2022-06-01 18:56:27" & C$datetime <= "2022-06-02 08:02:19") |
+                  (C$datetime >= "2022-06-21 18:08:37" & C$datetime <= "2022-06-22 20:46:34") |
+                  (C$datetime >= "2022-06-22 22:26:55" & C$datetime <= "2022-07-31 09:40:34") |
+                  (C$datetime >= "2022-07-31 19:40:40" & C$datetime <= "2022-08-04 10:51:02") |
+                  (C$datetime >= "2022-08-08 07:43:11" & C$datetime <= "2022-08-08 11:38:07") |
+                  (C$datetime >= "2022-08-11 07:36:05" & C$datetime <= "2022-08-15 07:56:08") |
+                  (C$datetime >= "2022-08-15 15:37:34" & C$datetime <= "2022-08-15 19:48:38") |
+                  (C$datetime >= "2022-08-15 21:19:33" & C$datetime <= "2022-09-05 05:35:59") |
+                  (C$datetime >= "2022-09-05 15:36:03" & C$datetime <= "2022-09-07 17:21:23"),]
+
+iaq2cBDACU <- E[E$datetime <= "2022-04-19 15:56:03" |
+                  (E$datetime >= "2022-04-20 01:56:13" & E$datetime <= "2022-04-25 11:54:32") |
+                  (E$datetime >= "2022-04-28 18:30:36" & E$datetime <= "2022-05-14 17:30:12") |
+                  (E$datetime >= "2022-05-18 12:39:53" & E$datetime <= "2022-06-02 13:06:57") |
+                  (E$datetime >= "2022-06-12 12:30:31" & E$datetime <= "2022-06-16 15:22:47"),]
+```
+```{r}
+MissingDataACU(iaq2cBHACU,"Data for when the Bay H ACU was OFF in the iaq2cBH fully matched period")
+MissingDataACU(iaq2cBDACU,"Data for when the Bay D ACU was OFF in the iaq2cBD fully matched period")
+```
+
+
+```{r}
+#This will create and export as an average averages 
+# Available for stat = "mean”, “max”, “min”, “median”, “frequency”, “sum”, “sd”, “percentile”
+#SummaryStats(F6,"mean",F6mean)
+#SummaryStats(G6,"mean",G6mean)
+#SummaryStats(F6,"median",F6median)
+#SummaryStats(G6,"median",G6median)
+#SummaryStats(F6,"max",F6max)
+#SummaryStats(G6,"max",G6max)
+#SummaryStats(F6,"min",F6min)
+#SummaryStats(G6,"min",G6min)
+#SummaryStats(F6,"sd",F6sd)
+#SummaryStats(G6,"sd",G6sd)
+```
+
+Import ACU, micro and PM data csv.
+
+```{r}
+
+micro <- read.csv(
+    file = "/Users/mattbutler/Desktop/COVID-19/IAQ data/micro.csv",
+    header = TRUE,
+    sep = ",")
+
+AcuAir <- read.csv(
+    file = "/Users/mattbutler/Desktop/COVID-19/IAQ data/ACUair.csv",
+    header = TRUE,
+    sep = ",")
+
+AcuAir <- AcuAir[,-c(15)]
+
+corAcuAir <- cor(AcuAir)
+
+write.csv(corAcuAir, "/Users/mattbutler/Desktop/COVID-19/IAQ data/corAcuAir.csv", row.names=TRUE)
+
+```
+
+

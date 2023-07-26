@@ -1,0 +1,159 @@
+# **AAirDS-C** (**C**linical){#AAirDS-C}
+Clinical Observational Before and After Controlled Study
+
+We present a real-world study to assess the health benefits of installing portable high efficiency particulate air (HEPA) filters with integral UV-C lamps (hereafter referred to as the air disinfection units (**ACUs**)) in medicine for older people wards at Addenbrooke’s Hospital, part of Cambridge University Hospitals NHS Foundation Trust (CUH). These wards do not currently comply with Health Technical Memorandum (HTM) 03-01 ventilation minimal requirements for healthcare premises and implementation of interventions to improve air quality in hospital settings has been recommended by SAGE.
+
+The proposed study will be a controlled before and after study involving medicine for older people wards; paired intervention and control wards; all designated as green (non-**COVID-19** cohort) wards. The study has a quasiexperimental design but is entirely observational, and no intervention other than routine clinical care is proposed. We are utilising routinely collected healthcare data, available for large scale retrospective analysis due to implementation of an electronic health record (EHR) at CUH, and taking advantage of the limited availability of **ACUs** currently in operation at our hospital. Thus, some of our wards currently have **ACUs** installed and others do not. Installation of **ACUs** is based on the availability of machines, locations within the hospital most suited to their installation, and considering clinical need. All aspects of routine healthcare will remain the same and will not be affected by the study. Data to support our analytical approach will be extracted from the EHR. This records all aspects of patient care and will be used to identify our study population and ascertain co-variable and outcome information, primarily cases of hospital acquired infection on wards with and without **ACU** technology.
+```{r fAAirDS-C,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "Layout of both study wards; A and B. The inlet vents are shown as blacksquaes with green traingles, the extracts as black and yellow triangles. ACUs are shown in blue labelled with variant (ACU200 = AeroTitan2000; ACU3000 = Aerototan3000). Windows are shown in ligt blue along the perimeter and internal cloister wall. The ward is orientated North North-West."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/FandG6studyLayout.png")
+```
+The study wards occupy the top sixth floor of one the blocks in the hospitals as shown in Figure \@ref(fig:fAAirDS-Ca).
+```{r fAAirDS-Ca,  echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "Location of the two intervention wards in 3 dimensions. As you can see to the north is a large 10 story hospital block and the building is relatively sheltered on the North-East side by a second 5 storey hospital block."}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/FandG6studyLayout3d.png")
+```
+Intervention wards have air disinfection units (**ACUs**) installed at each end of the main corridor and in each patient bay Figures \@ref(fig:fAAirDS-Cb) & \@ref(fig:fAAirDS-Cc).
+```{r fAAirDS-Cb, echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "AeroTitan2000 located in a patient bay; ward A"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/AeroTitan2000inBay2.jpg")
+```
+```{r fAAirDS-Cc, echo=FALSE, eval=picturesonly, out.width="100%", fig.cap = "AeroTitan3000 located in the ward corridor; ward A"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/ACU_CandD.jpg")
+```
+
+Historical clinical data describing ward patient cohorts over the 12 months before the intervention deployment will be retrieved from the hospital’s EHR, for both intervention and control wards, as well as information every two months after **ACU** installation up to a total of 12 months after installation. 12 month before and after time periods have been chosen because of the seasonality of some infections.
+
+There is a gap between these two ‘before and after’ time periods reflecting a period of **ACU** technology adjustment (based on unanticipated technical requirements and informal staff and patient feedback). However, the before and after time periods will be matched for ward pairs, so that they are the same for intervention and control wards.
+
+The study team will then compare the number of hospital acquired infections on the intervention ward before **ACU** installation and compare this with the number after installation. These trends will then be contrasted with trends for the same periods on the control ward. Our primary outcome is all hospital acquired infections, with a joint primary outcome specifically looking at hospital acquired **SARS-CoV-2** infections. Secondary outcome measures include length of stay, death and infections with other specific pathogens e.g., influenza.
+
+Currently one ward at our hospital has **ACU** technology installed. An initial medicine for older people ward had ACUs installed from 28th September 2021 to 10th October 2022. 
+
+The aim ws to include two ward pairs however successive waves of **COVID-19** and wider trust adoption of HEPA accross the trust has currently limited us to a single control ward. The 'intervention wards' for **ACU** installation were chosen based on the same pragmatic and clinical reasons as above, with the control ward then chosen as the most similarly matched ward, with respect to layout and ventilation specifications.
+
+## Sample size:{#sampleSize}
+
+Two   intervention   wards   (intervention   ward   1:   ACUs   activated   September2021; intervention ward 2: ACUs activated March 2022); and two control wards. All wardsprimarily   care   for   older   patients   and   are   at   the   same   hospital.   On   average   around   600patients are admitted to each ward per year. This would generate a study sample of approx.2400 patients in the ‘before’ part of the study; and 2400 patients after the intervention isactivated. 
+
+## Sample size rationale:{#sampleRationale}
+
+The sample size is pragmatic and based on the availability of ACUs as well as the number of suitable wards at the Teaching Hospital. It is possible that any reduction in hospital acquired infections may be lower than can be identified by this study. A standard cox hazard analysis within a two treatment study where there are no non-treatmentcovariates, 4800 individuals with 1200 receiving the treatment, an event rate of 0.05 (i.e. 5%of patients getting a hospital acquired infection), would be able to identify a hazard ratio of  1.52 with 80% power and a 5% significance level (Chow et al., 2008, Sample size calculations in clinical research). This is likely to be an over-estimate of the potential power of this study due to needing to control for non-zero covariates and the clustered nature of thedata (before/after, within wards).
+
+
+
+## Principal inclusion criteria{#principleIncl}
+
+(1) All inpatients on the studied medicine for older people wards during the study period. (Estimated sample size 600 admission episodes per ward per 12 month time period)
+
+While the lower age limit is 18, patients are almost always older than 60 years. The lower age limit of 18 is provided to include all patients exposed to the intervention as the control and intervention wards may admit younger patients if bed capacity elsewhere in the hospital becomes severely constrained 
+
+## Analytical plan{#analyticalPlan}
+
+Explanation of existing data: the clinical data used in this study will be retrieved from an Electronic Health Record (EHR) used in a large teaching hospital. This data will pertain to older adult patients admitted to study wards (both ‘intervention’ and ‘control’) one year beforeand after installation of ACUs. This data currently exists, as it is routinely collected healthcare data, but the dataset has not yet been retrieved from the EHR system by the clinical informatics team. Data from a historical cohort of patients (admitted to one inpatient ward between January 2017-January 2018) has been retrieved. This historical dataset has been used by the study team to inform the analytical plan. Data collection: routinely collected healthcare data will be retrieved from the EHR for patients admitted to ‘intervention’ and ‘control’ inpatient wards. Variables: Appendix 1 lists the key variables which will be retrieved from the EHR. Primary outcome measures/ endpoints:- 
+
+1. Incidence of ward acquired **SARS-CoV-2**: PCR positive swab taken greater than 48 hours after ward admission and no prior positive swab during the hospital admission for **SARS-CoV-2**. 
+
+2. Composite endpoint- incidence of ward acquired infections confirmed by microbiological testing but excluding **SARS-CoV-2**: 
+
+Time to first positive event as defined by any of the following positive microbiological test results, taken greater than 48 hours after ward admission and no prior positive result for the respective organism (bacteria or virus) during the hospital admission.
+
+a. Adenovirus DNA PCR
+b. HumanmetapneumovirusRNA PCR 
+c. Influenza A generic - PCR or SAMBA
+d. Influenza B RNA- PCR or SAMBA 
+e. Parainfluenza virus RNA PCR
+f. RSV RNA PCR
+g. Picornavirus PCR
+h. Norovirus PCRRNA
+i. Staphylococcus aureus (MRSA or MSSA)
+j. C. difficile – GDH or toxin positive
+
+Secondary outcome measures/ endpoints:-
+
+1. All parts of the composite primary endpoint will be explored in secondary outcomeanalyses (dependent on number of infections within each component being sufficient for analysis). 
+2. Analyses  for **SARS-CoV-2** will be repeated, including only incident cases with the PCR positive swab taken greater than 7 days after ward admission.
+3. Incidence   of   other   inpatient   hospital   acquired infections   (e.g.,  Proteus  spp.)   by positive microbiology sample.
+4. Length of stay (days).
+5. Bed days lost due to ward or bay closures.
+6. Antibiotic usage.
+7. Antibiotic cost.
+8. 30 day mortality.
+9. Readmission within 30 days. 
+
+Acceptability of the ACUs will be assessed through staff and patient surveys. Feasibility will be assessed by the percentage of time the ACUs are swiched on, during the study period.
+
+## Analysis Plan for Primary Endpoints:{#endpointsPlan}
+
+The number of infections of both main primary outcomes (**SARS-CoV-2** and composite) on each ward each week (or month if numbers are very low) will be presented graphically. 
+
+The main statistical analysis of the primary endpoint will be via a Cox hazard model to assess the ratio of the hazard of infection for patients when the filter is and is not turned on. The Cox hazard model takes account of patients' time at risk of infection due to varying length of stay on the ward and enables inclusion of patient level covariates along with ward level covariates. Separate models will be fitted for the **SARS-CoV-2** and composite primary endpoints. 
+
+In both models age, sex and ward will be included as co-variables to account for potential imbalances in patient vulnerability between the wards and for potential background differences between the wards. The number of infections detected on the ward in the previous 7 days will also be included as a covariable in order to account for potential imbalances in the seeding events between wards (at time of events and weekly for all patients). Additionally, the **SARS-CoV-2** analysis will include background infection level as a time-varying co-variable to control for the periodic nature of **COVID-19** spikes, as well as helping to control for changing infection control policies related to **COVID-19** (testing, mask wearing, etc.).
+
+**Primary Outcome Measure**; Co-variables; **Model**
+
+**SARS-CoV-2**; Age, sex, ward, background infection level, number of infections detected on ward in the previous 7 days; **Cox hazard model with time varying variables (infection levels)**
+
+**Composite**; Age, sex, ward, number of infections detected on ward in previous 7 days; **Cox hazard model with time varying variables (ward seeding level)**
+
+## Secondary analysis{#secAnalysis}
+
+As a secondary analysis, we will consider the potential from the data to identify clusters of **SARS-CoV-2** infection within wards using the **A2B-COVID** software package.  If clusters among patients are identifiable we will apply a chain binomial model of household infection to estimate the force of infection on the ward before and after the intervention.  Potential confounders to this analysis include undetected infections in patients and other sources of infection such as visitors to the ward and other health care workers.  
+We will use background **COVID-19** incidence data in combination with counts of cases of identified HAIs that cannot betraced to identified cases of infection that were not acquired on the ward to estimate the extent to which undetected sources of transmission might influence our results.
+
+# **AAirDS-Q** (**Q**ualitative){#AAirDS-Q}
+
+Feasibility and Acceptability Study; a short 3 item questionnaire on the acceptability of the air disinfection units was administered to a approximately 50 patients and 25 staff on the intervention ward(s) following verbal consent. This questionnaire is detailed in the study protocol and asks patients to rate the **ACUs** in terms of noise and draught on a scale of 1-10 (1-not noticeable; 10 severe disruption). Participant responses are represented as median (interquartile range) scores for staff and patients groups. Key themes regarding any free text feedback on the **ACUs** are also be summarised.
+
+Feasibility is represented as the percentage of study time the **ACUs** are successfully in operation. In addition, logs of maintenance and requirements for filter renewal were kept by Air Purity and provided to the study group. Ward managers also fedback regularly to the study team any adverse incidents involving the **ACUs** which where required were routinely reported using the hospital's quality and safety reporting system, alongside any other general operational feedback. No incidents to date have been reported aside from noise concerns overnight.
+
+We also collect data relating to other regularly audited infection control measures on the ward e.g., hand hygiene audit data. This is aggregate data and not person level. Aggregate data on staff sickness routinely reported by ward managers will also be collected. These data will not be subjected to manipulation e.g., through statistical modelling, but will provide additional indications of any effect of **ACU** deployment on staff behaviour. This will inform other work investigating the implementation of these units at scale across the NHS.
+
+# **AAirDS-E** (**E**nvironmental){#AAirDS-E} 
+
+Nested microbial air & surface sampling & continuous IAQ monitoring
+
+Environmental information is anonymised with respect to location. Data collected as part of the **AAirDS-E** study are also not clinical measures. However, these data provide valuable complimentary information documenting air quality and air flow around the ward, informing potential routes of pathogen transmission, and the presence of bacteria, fungi and viruses on wards with and without **ACUs**. Primarily we are examining:
+
+1. Reductions in particulate matter (**PM**) counts to assess whether the application of the **ACUs** has had any impact the indoor air quality on the wards as measured by fixed wall sensors.
+
+2. Changes to carbon dioxide (**CO~2~**; **ppm**) levels (the gas we breathe out during respiration) as a surrogate measure for “shared air” as measured by fixed wall sensors.
+
+3. Microbiological markers of surface and air contamination - **air** and **surface** sampling.
+
+Fixed wall sensors measure air quality metrics (relative humidity (**RH**; **%**), carbon dioxide (**CO~2~**; **ppm**), temperature (**temp**; **℃**), pressure (**pres**; **mBar**), and **PM~1~**, **PM~2.5~**, **PM~4~** and **PM~10~** particulate data measured in **ug/m^3^**) in the same locations on intervention and control wards. These data are collected automatically, anonymised at source and wirelessly transmitted for remote analysis off-site. Local storage to SD cards inside each sensor provides a backup of the data. Wireless amp meters are also integrated within the **ACUs** so that operation of the units can be monitored remotely. Sensors and **ACUs** connect securely to the trust Wi-Fi network
+
+Reductions in particulate matter (**PM**) counts were used to assess whether the application of the **ACUs** has had any impact on the indoor air quality on the wards. A positive outcome will be judged by the reduction of particulate matter. This reduction is expected to be seen across all size ranges but individual in-groupv (**PM** size:  **PM~1~**, **PM~2.5~**, **PM~4~** and **PM~10~** all measured as **ug/m^3^**) changes are also be analysed. The units are not expected to alter the relative humidity (**RH; **%**), carbon dioxide (**CO~2~**; **ppm), temperature (**temp**; **℃**), or pressure (**pres**; **mBar**) readings obtained from the sensors. However, if their operation leads to more window opening, given more particulates exist outdoors than indoors, we may see a paradoxical change in particulate matter which will also be accompanied by unexpected changes in **CO~2~**. 
+
+In addition, the impact of the intervention on the ward microbiome was assessed. Thermo Scientific™ AerosolSense™ bio-aerosol samplers [link](https://www.thermofisher.com/order/catalog/product/AEROSOLSENSE) were used for 96 hours in a predetermined location on both the intervention and control wards in the corridor (same for both pairs of wards). This was conducted daily at the same time each day alternating between control and intervention wards each week. 
+
+Surface samples were also collected from predetermined low (inaccessible and non-contact) horizontal surfaces as well as high touch surfaces at regular intervals.
+
+Molecular microbiological analysis was employed to examine a wide variety of pathogens simultaneously and to look for antimicrobial resistance genes that are a particular problem in hospital acquired infections (using Fluidigm microarray for RNA quantification).
+
+None of the air quality or microbiological air and surface sampling impact on clinical care and all measurements were taken by the study team. 
+
+The sensor data is fully de-identified at source without corresponding location information included in the transmitted source data. These data are stored offsite on the endpoint server. This data alone is subject to a pre-authorisation as per this protocol to be utilised by Air Purity UK for calibration of the **ACUs** as well as by third party research groups subject to a data transfer agreement being approved by the lead investigator and study sponsor. Microbiological data from air and surface sampling is stored within the University of Cambridge.
+
+## Hypotheses{#microHypothesis}
+
+Installing portable high efficiency particulate air (HEPA) filters with integral UV-C lamps (Air Cleaning Units, ACUs) can reduce the burden of microbial pathogens in inpatient wards.
+
+## Data collection{#microData}
+
+Thermofisher Aerosol Sense samplers (‘air samplers’) were used for 24 hours in predetermined locations on intervention and control wards. Surface samples were also be collected from predetermined high touch and inaccessible/ non-contact surfaces. These measurements were collected weekly as availability of equipment allows. 
+
+Molecular microbiological analysis of the samples collected was employed to examine awide variety of pathogens simultaneously and to look for antimicrobial resistance genes thatare a particular problem in hospital acquired infections (using Fluidigm microarray for RNA quantification). 
+
+## Analysis Plan{#microAnaysis} 
+
+The primary measures of microbial air quality are:
+
+1. Simple count of organisms detected
+2. Integrated measure of CT value and counts, to produce a ‘microbial density index’
+3. Comparison is between
+  a.Intervention ward: ACU off and ACU on
+  b.intervention and non-intervention wards
+
+## Additional analysis to consider measures of diversity and exploration of the data. 
+
+Air samples are the principal measures of interest but results of the surface swab samples are also be explored.
+

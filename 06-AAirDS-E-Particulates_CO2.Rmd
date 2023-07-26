@@ -1,0 +1,178 @@
+# **Particulates and CO~2~**{#800}
+
+As you can see from Figure [\@ref(fig:f241z)]{color="blue"}; like in our previous publication; there is a reduction in **CO~2~** (ppm) concentration in the `HEPA` state compared to the `No HEPA` state.
+
+It is important to note however that the degree of reduction is much lower on initial visual inspection than that suggested by our previous paper.
+
+## Scatter plot of PM1 $\mu$g per m^3^ and **CO~2~**(ppm)
+
+To examine if there is any relationship between two independent continuous variables we can initially get a visual representation of the data by doing a simple scatter plot. We will do this first for all the data but will then limit to both above and below **PM~1~** of 100$\mu$g per m^3^. For this dataset it is important also to exclude the erroneous single **CO~2~** value discovered ina previous section [\@ref(fig:f241z)]{color="blue"} of `r colorize ("**-8.847e+17**", "red")` using `iaq$co2[iaq$co2 < 0] <- NA` (Figure [\@ref(fig:f801z)]{color="blue"}).
+
+```{r f801, eval=rungraphs, fig.height=10, fig.width=10, fig.cap="Scatter plot of all PM1 $\\mu$g per m$^3$ and all CO$_2$ (ppm) observations; 26 missing values; trend line as linear model"}
+ggplot(iaq,
+       mapping = aes(
+         x=pm1,
+         y=co2)) +
+  geom_point(color= "cornflowerblue",
+             alpha=.1) +
+  theme_bw() +
+  scale_x_continuous(trans=scales::pseudo_log_trans(
+    base = 10),
+    breaks = c(0,1,10,100,1000,10000)) +
+  labs(x="PM1( ug/m3)", y="CO$_2$ (ppm)") +
+  geom_smooth(method = lm)
+```
+```{r f801z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Scatter plot of all PM1 $\\mu$g per m$^3$ and all CO$_2$ (ppm) observations; 26 missing values; trend line as linear model"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f801-1.png")
+```
+
+Here we can see that there is posibly a small negative relationship between particulates and carbon dioxide level if sampling the entire data set i.e. when particulates increase carbon dioxide decreases. This is interesting as you would have expected more people exhaling carbon dioxide to also be re-suspending and producing more particulates. This however, may be due to the `HEPA` state as it predominates in the data possibly masking any relationship seen in the `No HEPA` state.
+
+## Scatter plot of PM1 $\mu$g per m^3^ and **CO~2~**(ppm) by `HEPA` state
+
+To elucidate this we can do the same plot but grouped by `HEPA` state. Of note base `ggplot2` uses teal and pink as the default colours; I have switched these to a clourblind friendly pallette (Figure [\@ref(fig:f802z)]{color="blue"}).
+
+```{r f802, eval=rungraphs, fig.height=10, fig.width=10, fig.cap="Scatter plot of all PM1 $\\mu$g per m$^3$ and all CO$_2$ (ppm) observations; 26 missing values; points coloured by `HEPA` state. Trend line as linear model"}
+ggplot(iaq2,
+       mapping = aes(
+         x=pm1,
+         y=co2,
+         color = HEPA,
+         shape = HEPA,
+         linetype = HEPA)) +
+  geom_point(alpha=.1) +
+  scale_color_manual(
+    values = c(
+      "No HEPA"="#E69F00",
+      "HEPA"="#56B4E9")) +
+  theme_bw() +
+  scale_x_continuous(
+    trans=scales::pseudo_log_trans(
+      base = 10),
+    breaks = c(0,1,10,100,1000,10000)) +
+  labs(x="PM1 ( ug/m3)", y="CO$_2$ (ppm)") +
+  geom_smooth(
+    method = lm, 
+    se = FALSE, 
+    linewidth = 1.5)
+```
+```{r f802z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Scatter plot of all PM1 $\\mu$g per m$^3$ and all CO$_2$ (ppm) observations; 26 missing values; points coloured by `HEPA` state. Trend line as linear model"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f802-1.png")
+```
+
+As you can see from Figure [\@ref(fig:f802z)]{color="blue"} above there appears to be a negative relationship between **PM~1~** and **CO~2~** in the `HEPA` state and the opposite in the `No HEPA` state.
+
+## Scatter plot of **PM~1** and **CO~2~**(ppm) by `HEPA` state for **PM~1~** less than 100$\mu$g per m^3^
+
+As these trends could be skewed by the relatively few values greater than 100$\mu$g per m^3^ we will re-run the above minus **PM~1~** greater than 100$\mu$g per m^3^ and plot them each by whether the observatons were taken on a weekend or weekday given the apparent loss of any `HEPA` state affect at the weekend (see Figure [\@ref(fig:f775z)]{color="blue"} vs Figure [\@ref(fig:f803z)]{color="blue"}.)
+
+```{r f803, eval=rungraphs, fig.height=10, fig.width=10, fig.cap="Scatter plot of PM1 $\\mu$g per m$^3$ less than 100 and all CO$_2$ (ppm) observations by weekend (Y or N); 26 missing values; points coloured by `HEPA` state; trend line as linear model"}
+iaq2[iaq2$spike2 == "<100",] %>>%
+  ggplot(iaq2,
+         mapping = aes(
+           x=pm1, 
+           y=co2,
+           color = HEPA,
+           shape = HEPA,
+           linetype = HEPA)) +
+  geom_point(alpha=.1) +
+  scale_color_manual(
+    values = c(
+      "No HEPA"="#E69F00",
+      "HEPA"="#56B4E9")) +
+  facet_wrap(daytime~weekend, ncol = 2) +
+  scale_x_continuous(
+    trans=scales::pseudo_log_trans(
+      base = 10),
+    breaks = c(
+      0,1,10,100,1000,10000)) +
+  labs(title="Weekday                                                            Weekend",
+       x="PM1 ( ug/m3)",
+       y="CO$_2$ (ppm)") +
+  geom_smooth(
+    method = lm, 
+    se = FALSE, 
+    linewidth = 1.5)
+```
+```{r f803z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Scatter plot of PM1 $\\mu$g per m$^3$ less than 100 and all CO$_2$ (ppm) observations by weekend (Y or N); 26 missing values; points coloured by `HEPA` state; trend line as linear model"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f803-1.png")
+```
+
+As you can see in Figure [\@ref(fig:f803z)]{color="blue"} the trend of **CO~2~** increasing with **PM~1~** in the `No HEPA` state is more marked in the busy weekday period compared with the quieter weekend period when occupancy of the ward is reduced owing to fewer staff being on duty.
+
+## Scatter plot of PM1 $\mu$g per m^3^ and **CO~2~**(ppm) by `HEPA` state for **PM~1~** less than 100$\mu$g per m^3^
+
+It is also conceivable that in addition to when AAirDS researchers are not present at the weekend, the **ACUs** may also be being switched off overnight to limit noise. We can then group by day (0600-2000) or night (2000-0600) (Figure [\@ref(fig:f804z)]{color="blue"}).
+`
+
+```{r f804, eval=rungraphs, fig.height=10, fig.width=10, fig.cap="Scatter plot of $PM_1$ less than 100$\\mu$g per m$^3$ and all CO$_2$ (ppm) observations by weekend and daytime; 277 removed non-finite values; points coloured by `HEPA` state; trend line as linear model", cache=TRUE}
+iaq[iaq2$spike2 == "<100",] %>>%
+  ggplot(data=iaq2,
+         mapping = aes(x=pm1,
+                       y=co2,
+                       color = HEPA,
+                       shape = HEPA,
+                       linetype = HEPA)) +
+  geom_point(alpha=.1) +
+  scale_color_manual(
+    values = c("No HEPA"="#E69F00",
+               "HEPA"="#56B4E9")) +
+  facet_wrap(daytime~weekend, ncol = 2) +
+  scale_x_continuous(trans=scales::pseudo_log_trans(
+    base = 10),
+    breaks = c(0,1,10,100,1000,10000)) +
+  scale_y_continuous(limits = c(0, 1200)) +
+  labs(title="Weekday                                                                                                 Weekend",
+       x="$PM_1$ ($\\mu$g per m$^3$)",
+       y="CO$_2$ (ppm)") +
+  geom_smooth(method = lm, 
+              se = FALSE, 
+              linewidth = 0.5)
+```
+```{r f804z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Scatter plot of PM1 observations of less than 100$\\mu$g per m$^3$ with all CO$_2$ (ppm) observations by weekend and daytime; 277 removed non-finite values; points coloured by `HEPA` state; trend line as linear model"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f804-1.png")
+```
+
+From this chart you can see the association of PM1 $\mu$g per m^3^ increasing and **CO~2~**(ppm) decreasing is more marked on a weekday probably when the machines are more likely to be on. One hypothesis would be that in the morning when **CO~2~** levels tend to be lower (Figure [\@ref(fig:f241z)]{color="blue"} ) there is less mixing of the air at a time when beds are being made, patients being washed and possibly deodorants being sprayed. The greater mixing of the air in the `HEPA` state might therefore lead to this negative correlation as the same amount of **CO~2~** is better mixed in a larger volume of air detected as a reduction in its concentration at the sensors.
+
+## Plotting **CO~2~** with **PM~1~** less than 100$\mu$g per m^3^ normalised with `timeVariation()`
+
+Is there a temporal relationship between **CO~2~** and **PM~1~*? Figure [\@ref(fig:f805z)]{color="blue"}.
+
+```{r f805, eval=rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of normalised **PM~1~** observations of less than 100$\\mu$g per m$^3$  alongside normalised CO$_2$ (ppm) observations ($>=$ zero), by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq2[iaq2$spike2 == "<100",],
+pollutant = c("pm1", "co2"),
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = TRUE,
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f805z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Variation of normalised PM1 observations of less than 100$\\mu$g per m$^3$ alongside normalised CO$_2$ (ppm) observations ($>=$ 0), by hour of the day, day of the week, and month. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f805-1.png")
+```
+As you can see the relationship is is difficult to distinguish and as per the previous analysis may be being masked by the `HEPA` state.
+
+## Plotting **CO~2~** with **PM~1~** less than 100$\mu$g per m^3^ normalised with `timeVariation()`
+
+Is there a temporal relationship between **CO~2~** and **PM~1~* in the `No HEPA` state? Figure [\@ref(fig:f806z)]{color="blue"}. We would expect any positive correlation to be strongest on a weekday as per Figure [\@ref(fig:f804z)]{color="blue"}.
+
+```{r f806, eval=rungraphs, fig.height=10, fig.width=10, fig.cap = "Variation of normalised observations of less than 100$\\mu$g per m$^3$ alongside normalised CO$_2$  (ppm) observations ($>=$0), by hour of the day, day of the week, and month for the No HEPA state only. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations", cache=TRUE}
+timeVariation(
+iaq[iaq$spike2 == "<100" &
+      iaq$HEPA == "No HEPA",],
+pollutant = c("pm1", "co2"),
+cols = "cbPalette",
+local.tz = "Europe/London",
+normalise = TRUE,
+xlab = c("hour", "hour", "month", "weekday"),
+plot = TRUE,
+)
+```
+```{r f806z, eval=picturesonly, echo=FALSE, out.width="100%", fig.cap="Variation of normalised PM1 observations of less than 100$\\mu$g per m$^3$ alongside normalised CO$_2$ (ppm) observations ($>=$ zero), by hour of the day, day of the week, and month for the No HEPA state only. The plots show the 95$\\%$ confidence intervals in the mean which are calculated through bootstrap simulations"}
+knitr::include_graphics("/Users/mattbutler/Documents/GitHub/AAirDS/AAirDS/063c4ecdfcb1c93a93a8317d05616cb52f0a65cd/images/f806-1.png")
+```
+
+Here it appears that the majority of the peaks in carbon dioxide also coincide with the peaks in particulates especially in the daily averaged plot (bottom left Figure [\@ref(fig:f806z)]{color="blue"} ).
